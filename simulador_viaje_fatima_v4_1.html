@@ -1,0 +1,2052 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de Viaje — María Fátima</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f5f5f3;color:#1a1a18;min-height:100vh;font-size:14px}
+.app{max-width:1100px;margin:0 auto;padding:20px 16px 40px}
+
+.header{background:#1F4E79;border-radius:12px;padding:16px 22px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.header h1{font-size:16px;font-weight:600;color:#fff;display:flex;align-items:center;gap:8px}
+.header p{font-size:11px;color:#a8c4e0;margin-top:2px}
+.vessel-tag{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;color:#fff}
+
+.nav{display:flex;gap:6px;margin-bottom:14px;background:#fff;border-radius:10px;padding:6px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.ntab{flex:0 0 auto;padding:10px 14px;border-radius:7px;border:none;background:transparent;font-size:13px;font-weight:500;color:#888;cursor:pointer;transition:all .2s;font-family:inherit;text-align:center;white-space:nowrap;touch-action:manipulation;-webkit-tap-highlight-color:rgba(46,117,182,0.2);position:relative;z-index:5}
+.ntab.active{background:#1F4E79;color:#fff;font-weight:600}
+.ntab:hover:not(.active){background:#f0f0ee;color:#1a1a18}
+
+.screen{display:none}.screen.active{display:block}
+
+.card{background:#fff;border-radius:10px;padding:18px 20px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.card-title{font-size:12px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.7px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+
+.kpi{background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.kpi-label{font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px}
+.kpi-value{font-size:22px;font-weight:700;color:#1F4E79}
+.kpi-sub{font-size:11px;color:#aaa;margin-top:3px}
+
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
+.field input,.field select{width:100%;border:1.5px solid #e0ddd8;border-radius:7px;padding:8px 10px;font-size:13px;font-family:inherit;color:#1a1a18;background:#fafaf8;outline:none;transition:.2s}
+.field input:focus{border-color:#2E75B6;background:#fff}
+.field .hint{font-size:10px;color:#bbb;margin-top:3px}
+
+/* ── BARRA DE CARGA ── */
+.carga-wrap{background:#fff;border-radius:10px;padding:16px 20px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.carga-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.carga-title{font-size:12px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.7px}
+.carga-nums{font-size:13px;font-weight:700}
+.carga-track{height:18px;background:#f0ece6;border-radius:9px;overflow:hidden;display:flex;gap:1px}
+.carga-seg{height:100%;transition:width .35s ease;border-radius:0}
+.carga-seg:first-child{border-radius:9px 0 0 9px}
+.carga-seg:last-child{border-radius:0 9px 9px 0}
+.seg-yf{background:#2E75B6}
+.seg-skj{background:#1D9E75}
+.seg-rec{background:#BA7517}
+.seg-ps{background:#534AB7}
+.seg-bt{background:#D85A30}
+.seg-do{background:#0F6E56}
+.seg-extra{background:#888}
+.seg-libre{background:#f0ece6}
+.carga-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+.carga-leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#555}
+.carga-leg-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.carga-warning{font-size:11px;font-weight:700;color:#D85A30;margin-top:6px;display:none}
+
+/* ── TABLA DE ESPECIES (TM absolutas) ── */
+.esp-table{width:100%;border-collapse:collapse}
+.esp-table th{font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.5px;padding:4px 8px 8px;text-align:left}
+.esp-table th.right{text-align:right}
+.esp-table td{padding:5px 8px;border-bottom:1px solid #f5f2ee;vertical-align:middle}
+.esp-table tr:last-child td{border-bottom:none}
+.esp-table input[type=number]{width:100%;border:1.5px solid #e0ddd8;border-radius:6px;padding:5px 7px;font-size:12px;font-family:inherit;color:#1a1a18;background:#fafaf8;outline:none;transition:.2s;text-align:right}
+.esp-table input[type=number]:focus{border-color:#2E75B6;background:#fff}
+.esp-table .esp-name{font-size:12px;font-weight:600;color:#444;white-space:nowrap}
+.esp-table .esp-px{font-size:12px;color:#2E75B6;text-align:right;font-weight:600}
+.esp-table .esp-tot{font-size:12px;font-weight:700;color:#1D9E75;text-align:right}
+.esp-table .esp-pct{font-size:11px;color:#aaa;text-align:right}
+
+/* ── TALLAS (dentro de YF / SKJ) ── */
+.talla-subrow{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.talla-subrow .tl-label{font-size:11px;color:#666;width:72px;flex-shrink:0}
+.talla-subrow input[type=range]{flex:1;min-width:0}
+.talla-subrow .tl-val{font-size:11px;font-weight:700;color:#1F4E79;width:38px;text-align:right;flex-shrink:0}
+.talla-subrow .tl-diff{font-size:10px;font-weight:600;width:38px;text-align:right;flex-shrink:0}
+.talla-subrow .tl-tm{font-size:10px;color:#2E75B6;font-weight:600;width:42px;text-align:right;flex-shrink:0}
+/* Editable differential inputs */
+.diff-input{width:58px;flex-shrink:0;border:1.5px solid #e0ddd8;border-radius:5px;padding:3px 5px;font-size:11px;font-weight:700;font-family:inherit;text-align:right;outline:none;background:#fafaf8;color:#1D9E75;transition:.2s}
+.diff-input:focus{border-color:#2E75B6;background:#fff}
+.diff-input.diff-neg{color:#D85A30}
+.diff-input.diff-anchor{color:#888}
+.tl-diff.pos{color:#1D9E75}.tl-diff.neg{color:#D85A30}.tl-diff.neu{color:#aaa}
+.talla-block{background:#f8f7f5;border-radius:8px;padding:12px 14px;margin-top:10px}
+.talla-block-title{font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;justify-content:space-between}
+
+/* ── PROVEEDORES ── */
+.prov-row{display:flex;align-items:center;gap:7px;margin-bottom:9px}
+.prov-row .prov-name{font-size:12px;border:none;background:transparent;border-bottom:1.5px solid #e0ddd8;color:#1a1a18;width:100px;flex-shrink:0;outline:none;padding:2px 3px;font-family:inherit;transition:.2s}
+.prov-row .prov-name:focus{border-bottom-color:#2E75B6}
+.prov-row input[type=range]{flex:1;min-width:0}
+.prov-row .prov-manual{width:70px;flex-shrink:0;border:1.5px solid #e0ddd8;border-radius:5px;padding:4px 6px;font-size:12px;font-weight:700;font-family:inherit;text-align:right;outline:none;background:#fafaf8;color:#1F4E79;transition:.2s}
+.prov-row .prov-manual:focus{border-color:#2E75B6;background:#fff}
+
+/* ── BREAKEVEN ── */
+.brkevn{background:#1F4E79;border-radius:10px;padding:18px 20px;color:#fff;margin-bottom:12px}
+.brkevn-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;opacity:.65;margin-bottom:10px}
+.brkevn-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.brkevn-item .bl{font-size:11px;opacity:.6;margin-bottom:3px}
+.brkevn-item .bv{font-size:20px;font-weight:700}
+.brkevn-item .bs{font-size:10px;opacity:.55;margin-top:2px}
+
+/* ── CASHFLOW ── */
+.cashflow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px}
+.cf-phase{border-radius:8px;padding:13px 14px;text-align:center}
+.cf-phase.zarpe{background:#FAEEDA;border:1px solid #FAC775}
+.cf-phase.mar{background:#E6F1FB;border:1px solid #B5D4F4}
+.cf-phase.llegada{background:#E1F5EE;border:1px solid #9FE1CB}
+.cf-phase .cf-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.cf-phase.zarpe .cf-label{color:#412402}
+.cf-phase.mar .cf-label{color:#042C53}
+.cf-phase.llegada .cf-label{color:#085041}
+.cf-phase .cf-val{font-size:17px;font-weight:700}
+.cf-phase.zarpe .cf-val{color:#BA7517}
+.cf-phase.mar .cf-val{color:#185FA5}
+.cf-phase.llegada .cf-val{color:#1D9E75}
+.cf-phase .cf-items{font-size:10px;color:#888;margin-top:6px;line-height:1.8;white-space:pre-line;text-align:left}
+
+/* ── TABLAS ── */
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th{padding:8px 12px;text-align:left;background:#f5f5f3;font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.5px}
+.data-table td{padding:9px 12px;border-bottom:1px solid #f0ece6}
+.data-table tr:last-child td{border-bottom:none}
+.data-table .r{text-align:right}
+.data-table .total-row{background:#f8f6f2;font-weight:700}
+.diff-pos{color:#1D9E75;font-weight:700}
+.diff-neg{color:#D85A30;font-weight:700}
+
+/* Margin bar */
+.margin-bar-wrap{height:12px;background:#f0ece6;border-radius:6px;overflow:hidden;margin-top:6px}
+.margin-bar-fill{height:100%;border-radius:6px;transition:width .5s ease}
+
+/* Badges */
+.badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700}
+.badge.green{background:#E1F5EE;color:#085041}
+.badge.red{background:#FAECE7;color:#4A1B0C}
+.badge.amber{background:#FAEEDA;color:#412402}
+
+.sec-div{display:flex;align-items:center;gap:10px;margin:14px 0 10px}
+.sec-div span{font-size:11px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.7px;white-space:nowrap}
+.sec-div::before,.sec-div::after{content:'';flex:1;height:1px;background:#e8e4de}
+
+.chart-wrap{position:relative;width:100%;height:220px;margin-top:10px}
+
+.save-dot{width:7px;height:7px;border-radius:50%;background:#4AE3A8;display:inline-block;opacity:0;transition:opacity .3s}
+.save-dot.show{opacity:1}
+
+.pill{display:inline-block;background:#f0f7ff;border:1px solid #B5D4F4;border-radius:6px;padding:2px 9px;font-size:11px;font-weight:700;color:#185FA5;margin-left:6px}
+
+/* Inventory rows — full width table layout */
+.inv-header-row,.inv-row{display:grid;grid-template-columns:200px 70px 110px 100px 80px 140px 150px 26px;gap:6px;align-items:center;margin-bottom:6px;padding:0 2px}
+.inv-header-row{margin-bottom:8px;padding-bottom:8px;border-bottom:1.5px solid #f0ece6}
+.inv-header-row span{font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.4px}
+.inv-row input[type=text]{border:1.5px solid #e0ddd8;border-radius:5px;padding:5px 7px;font-size:12px;font-family:inherit;outline:none;background:#fafaf8;transition:.2s;width:100%}
+.inv-row input[type=text]:focus{border-color:#2E75B6;background:#fff}
+.inv-row input[type=number]{border:1.5px solid #e0ddd8;border-radius:5px;padding:5px 7px;font-size:12px;font-family:inherit;outline:none;background:#fafaf8;transition:.2s;width:100%;text-align:right}
+.inv-row input[type=number]:focus{border-color:#2E75B6;background:#fff}
+.inv-rem{font-size:12px;font-weight:700;text-align:right}
+.inv-rem.ok{color:#1D9E75}.inv-rem.warn{color:#BA7517}.inv-rem.crit{color:#D85A30}
+.inv-cons{font-size:12px;font-weight:600;color:#D85A30;text-align:right}
+/* Semáforo */
+.sem-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:7px;margin-bottom:6px;font-size:12px}
+.sem-item.ok{background:#E1F5EE}
+.sem-item.warn{background:#FAEEDA}
+.sem-item.crit{background:#FAECE7}
+.sem-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.sem-dot.ok{background:#1D9E75}
+.sem-dot.warn{background:#BA7517}
+.sem-dot.crit{background:#D85A30}
+
+@media(max-width:620px){
+  .grid-2,.grid-4{grid-template-columns:1fr 1fr}
+  .brkevn-grid,.cashflow{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="header">
+  <div>
+    <h1>Simulador de Rentabilidad <span class="save-dot" id="saveDot"></span></h1>
+    <p>Proyección pre-zarpe · Cierre real · Comparativo</p>
+  </div>
+  <span class="vessel-tag">María Fátima · 180 TM</span>
+</div>
+
+<div class="nav">
+  <button type="button" class="ntab active" onclick="showScreen('proy',this)">Proyección</button>
+  <button type="button" class="ntab" onclick="showScreen('cierre',this)">Cierre real</button>
+  <button type="button" class="ntab" onclick="showScreen('comp',this)">vs. Real</button>
+  <button type="button" class="ntab" onclick="showScreen('sim',this)">Simulación</button>
+  <button type="button" class="ntab" onclick="showScreen('auditoria',this)">Auditoría</button>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PANTALLA 1 — PROYECCIÓN
+══════════════════════════════════════════ -->
+<div id="screen-proy" class="screen active">
+
+  <div class="grid-2">
+    <!-- Col izquierda: parámetros + captura -->
+    <div>
+
+      <div class="card">
+        <div class="card-title">Parámetros del viaje</div>
+        <div class="field">
+          <label>N° Entrada / Viaje</label>
+          <input type="text" id="p_entrada" placeholder="Ej. 75" oninput="sv();cp()">
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label>Días estimados en el mar</label>
+            <input type="number" id="p_dias" value="0" min="0" max="120" oninput="sv();cp()">
+          </div>
+          <div class="field">
+            <label>Capacidad de carga (TM)</label>
+            <input type="number" id="p_cap" value="180" min="1" max="300" oninput="sv();cp()">
+          </div>
+        </div>
+        <div class="field">
+          <label>Precio ancla base ($/TM) — aplica a YF 4–7.5 kg y SKJ 4–7.5 kg</label>
+          <input type="number" id="p_ancla" value="0" oninput="sv();cp()">
+        </div>
+      </div>
+
+      <!-- BARRA DE CARGA -->
+      <div class="carga-wrap">
+        <div class="carga-header">
+          <span class="carga-title">Distribución de la carga</span>
+          <span class="carga-nums"><span id="carga_usada" style="color:#1F4E79">0</span> / <span id="carga_cap">180</span> TM</span>
+        </div>
+        <div class="carga-track" id="carga_track">
+          <div class="carga-seg seg-libre" style="width:100%" id="seg_libre"></div>
+        </div>
+        <div class="carga-legend" id="carga_legend"></div>
+        <div class="carga-warning" id="carga_warning">⚠ La carga supera la capacidad del buque</div>
+      </div>
+
+      <!-- TABLA DE CAPTURA: YF + SKJ + Comercio en TM absolutas -->
+      <div class="card">
+        <div class="card-title">Captura estimada por especie <span class="pill" id="tm_total_pill">0 TM</span></div>
+
+        <table class="esp-table">
+          <thead>
+            <tr>
+              <th style="width:30%">Especie</th>
+              <th class="right" style="width:18%">TM</th>
+              <th class="right" style="width:18%">Precio $/TM</th>
+              <th class="right" style="width:16%">% carga</th>
+              <th class="right" style="width:18%">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="esp-name" style="color:#2E75B6">● Yellow Fin</span></td>
+              <td><input type="number" id="tm_yf" value="0" min="0" step="0.5" oninput="sv();cp()"></td>
+              <td class="esp-px" id="px_yf_disp">—</td>
+              <td class="esp-pct" id="pct_yf">—</td>
+              <td class="esp-tot" id="tot_yf">—</td>
+            </tr>
+            <tr>
+              <td><span class="esp-name" style="color:#1D9E75">● Skipjack</span></td>
+              <td><input type="number" id="tm_skj" value="0" min="0" step="0.5" oninput="sv();cp()"></td>
+              <td class="esp-px" id="px_skj_disp">—</td>
+              <td class="esp-pct" id="pct_skj">—</td>
+              <td class="esp-tot" id="tot_skj">—</td>
+            </tr>
+            <tr>
+              <td><span class="esp-name" style="color:#BA7517">● Rechazo</span></td>
+              <td><input type="number" id="tm_rec" value="0" min="0" step="0.5" oninput="sv();cp()"></td>
+              <td><input type="number" id="px_rec" value="1100" min="0" oninput="sv();cp()"></td>
+              <td class="esp-pct" id="pct_rec">—</td>
+              <td class="esp-tot" id="tot_rec">—</td>
+            </tr>
+            <tr>
+              <td><span class="esp-name" style="color:#534AB7">● Pata seca</span></td>
+              <td><input type="number" id="tm_ps" value="0" min="0" step="0.5" oninput="sv();cp()"></td>
+              <td><input type="number" id="px_ps" value="0" min="0" oninput="sv();cp()"></td>
+              <td class="esp-pct" id="pct_ps">—</td>
+              <td class="esp-tot" id="tot_ps">—</td>
+            </tr>
+            <tr>
+              <td><span class="esp-name" style="color:#D85A30">● Botella</span></td>
+              <td><input type="number" id="tm_bt" value="0" min="0" step="0.5" oninput="sv();cp()"></td>
+              <td><input type="number" id="px_bt" value="0" min="0" oninput="sv();cp()"></td>
+              <td class="esp-pct" id="pct_bt">—</td>
+              <td class="esp-tot" id="tot_bt">—</td>
+            </tr>
+            <tr>
+              <td><span class="esp-name" style="color:#0F6E56">● Dorado</span></td>
+              <td><input type="number" id="tm_do" value="0" min="0" step="0.5" oninput="sv();cp()"></td>
+              <td><input type="number" id="px_do" value="0" min="0" oninput="sv();cp()"></td>
+              <td class="esp-pct" id="pct_do">—</td>
+              <td class="esp-tot" id="tot_do">—</td>
+            </tr>
+            <tr id="row_extra" style="display:none">
+              <td><input type="text" id="nom_extra" placeholder="Otra especie" style="font-size:12px;border:1.5px solid #e0ddd8;border-radius:5px;padding:4px 6px;width:100%;font-family:inherit;outline:none" oninput="sv();cp()"></td>
+              <td><input type="number" id="tm_extra" value="0" min="0" step="0.5" oninput="sv();cp()"></td>
+              <td><input type="number" id="px_extra" value="0" min="0" oninput="sv();cp()"></td>
+              <td class="esp-pct" id="pct_extra">—</td>
+              <td class="esp-tot" id="tot_extra">—</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
+          <button onclick="document.getElementById('row_extra').style.display='table-row';sv()" style="font-size:11px;color:#2E75B6;background:none;border:none;cursor:pointer;padding:0">+ Agregar otra especie</button>
+          <span style="font-size:12px;color:#666">Total ingreso: <strong id="ing_total_disp" style="color:#1D9E75">—</strong></span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Col derecha: tallas + costos -->
+    <div>
+
+      <!-- TALLAS YF -->
+      <div class="card">
+        <div class="card-title">Tallas Yellow Fin <span style="font-size:10px;font-weight:400;color:#aaa">— diferencial editable sobre precio ancla</span></div>
+        <div class="talla-block">
+          <div class="talla-block-title">
+            <span>Distribución por talla (% de TM YF)</span>
+            <span id="yf_talla_sum" style="color:#1a1a18">100%</span>
+          </div>
+          <div class="talla-subrow">
+            <span class="tl-label">&gt; 20 kg</span>
+            <input type="range" id="tl_yf_g" min="0" max="100" value="20" step="1" oninput="syncTalla('yf');sv();cp()">
+            <span class="tl-val" id="tv_yf_g">20%</span>
+            <span class="tl-tm" id="ttm_yf_g">—</span>
+            <input type="number" class="diff-input" id="d_yf_g" value="200" step="50" oninput="sv();cp()">
+          </div>
+          <div class="talla-subrow">
+            <span class="tl-label">7.5–20 kg</span>
+            <input type="range" id="tl_yf_m" min="0" max="100" value="40" step="1" oninput="syncTalla('yf');sv();cp()">
+            <span class="tl-val" id="tv_yf_m">40%</span>
+            <span class="tl-tm" id="ttm_yf_m">—</span>
+            <input type="number" class="diff-input" id="d_yf_m" value="150" step="50" oninput="sv();cp()">
+          </div>
+          <div class="talla-subrow">
+            <span class="tl-label">4–7.5 kg</span>
+            <input type="range" id="tl_yf_b" min="0" max="100" value="30" step="1" oninput="syncTalla('yf');sv();cp()">
+            <span class="tl-val" id="tv_yf_b">30%</span>
+            <span class="tl-tm" id="ttm_yf_b">—</span>
+            <input type="number" class="diff-input diff-anchor" id="d_yf_b" value="0" step="50" oninput="sv();cp()">
+          </div>
+          <div class="talla-subrow">
+            <span class="tl-label">3–4 kg</span>
+            <input type="range" id="tl_yf_ch" min="0" max="100" value="8" step="1" oninput="syncTalla('yf');sv();cp()">
+            <span class="tl-val" id="tv_yf_ch">8%</span>
+            <span class="tl-tm" id="ttm_yf_ch">—</span>
+            <input type="number" class="diff-input diff-neg" id="d_yf_ch" value="-200" step="50" oninput="sv();cp()">
+          </div>
+          <div class="talla-subrow">
+            <span class="tl-label">&lt; 3 kg</span>
+            <input type="range" id="tl_yf_xs" min="0" max="100" value="2" step="1" oninput="syncTalla('yf');sv();cp()">
+            <span class="tl-val" id="tv_yf_xs">2%</span>
+            <span class="tl-tm" id="ttm_yf_xs">—</span>
+            <input type="number" class="diff-input diff-neg" id="d_yf_xs" value="-400" step="50" oninput="sv();cp()">
+          </div>
+          <div style="font-size:11px;color:#666;margin-top:6px">Precio efectivo YF ponderado: <strong id="px_yf_ef" style="color:#2E75B6">—</strong></div>
+        </div>
+      </div>
+
+      <!-- TALLAS SKJ -->
+      <div class="card">
+        <div class="card-title">Tallas Skipjack <span style="font-size:10px;font-weight:400;color:#aaa">— diferencial editable sobre precio ancla base</span></div>
+        <div style="font-size:11px;color:#aaa;margin-bottom:10px">SKJ 4–7.5 kg = precio ancla + $0. Mismo ancla que YF.</div>
+        <div class="talla-block">
+          <div class="talla-block-title">
+            <span>Distribución por talla (% de TM SKJ)</span>
+            <span id="skj_talla_sum" style="color:#1a1a18">100%</span>
+          </div>
+          <div class="talla-subrow">
+            <span class="tl-label">&gt; 7.5 kg</span>
+            <input type="range" id="tl_skj_g" min="0" max="100" value="35" step="1" oninput="syncTalla('skj');sv();cp()">
+            <span class="tl-val" id="tv_skj_g">35%</span>
+            <span class="tl-tm" id="ttm_skj_g">—</span>
+            <input type="number" class="diff-input" id="d_skj_g" value="50" step="50" oninput="sv();cp()">
+          </div>
+          <div class="talla-subrow">
+            <span class="tl-label">4–7.5 kg</span>
+            <input type="range" id="tl_skj_b" min="0" max="100" value="45" step="1" oninput="syncTalla('skj');sv();cp()">
+            <span class="tl-val" id="tv_skj_b">45%</span>
+            <span class="tl-tm" id="ttm_skj_b">—</span>
+            <input type="number" class="diff-input diff-anchor" id="d_skj_b" value="0" step="50" oninput="sv();cp()">
+          </div>
+          <div class="talla-subrow">
+            <span class="tl-label">3–4 kg</span>
+            <input type="range" id="tl_skj_ch" min="0" max="100" value="15" step="1" oninput="syncTalla('skj');sv();cp()">
+            <span class="tl-val" id="tv_skj_ch">15%</span>
+            <span class="tl-tm" id="ttm_skj_ch">—</span>
+            <input type="number" class="diff-input diff-neg" id="d_skj_ch" value="-200" step="50" oninput="sv();cp()">
+          </div>
+          <div class="talla-subrow">
+            <span class="tl-label">&lt; 3 kg</span>
+            <input type="range" id="tl_skj_xs" min="0" max="100" value="5" step="1" oninput="syncTalla('skj');sv();cp()">
+            <span class="tl-val" id="tv_skj_xs">5%</span>
+            <span class="tl-tm" id="ttm_skj_xs">—</span>
+            <input type="number" class="diff-input diff-neg" id="d_skj_xs" value="-400" step="50" oninput="sv();cp()">
+          </div>
+          <div style="font-size:11px;color:#666;margin-top:6px">Precio efectivo SKJ ponderado: <strong id="px_skj_ef" style="color:#1D9E75">—</strong></div>
+        </div>
+      </div>
+
+      <!-- COSTOS -->
+      <div class="card">
+        <div class="card-title">Rol y otros costos</div>
+        <div class="field">
+          <label>Rol tripulación ($/TM capturada)</label>
+          <input type="number" id="p_rol_tm" value="0" step="0.50" oninput="sv();cp()">
+        </div>
+        <div class="field">
+          <label>Castigos salinidad estimados ($)</label>
+          <input type="number" id="p_sal" value="0" oninput="sv();cp()">
+        </div>
+        <div class="field">
+          <label>Anticipos zarpe + saldo anterior ($)</label>
+          <input type="number" id="p_anticipo" value="0" oninput="sv();cp()">
+        </div>
+      </div>
+
+      <!-- AVITUALLAMIENTO -->
+      <div class="card">
+        <div class="card-title">Avituallamiento y trabajos de salida <span class="pill" id="prov_pill">$0</span></div>
+        <div style="font-size:11px;color:#aaa;margin-bottom:10px">Incluye combustible. Nombre editable por categoría.</div>
+        <div id="prov_container"></div>
+        <div style="margin-top:6px;text-align:right">
+          <button onclick="addProv()" style="font-size:11px;color:#2E75B6;background:none;border:none;cursor:pointer">+ Agregar categoría</button>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /grid-2 -->
+
+  <!-- BREAKEVEN -->
+  <div class="brkevn">
+    <div class="brkevn-title">Punto de equilibrio y resultado proyectado</div>
+    <div class="brkevn-grid">
+      <div class="brkevn-item">
+        <div class="bl">Costo total estimado</div>
+        <div class="bv" id="p_costo_total">—</div>
+        <div class="bs">Combustible + Proveedores + Rol + Sal</div>
+      </div>
+      <div class="brkevn-item">
+        <div class="bl">TM mínimas para equilibrio</div>
+        <div class="bv" id="p_tm_be">—</div>
+        <div class="bs" id="p_tm_be_sub">de TM estimadas</div>
+      </div>
+      <div class="brkevn-item">
+        <div class="bl">Margen proyectado</div>
+        <div class="bv" id="p_margen">—</div>
+        <div class="bs" id="p_margen_pct">% sobre ingresos</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
+    <div class="kpi"><div class="kpi-label">Ingreso proyectado</div><div class="kpi-value" id="p_ing_kpi">—</div><div class="kpi-sub" id="p_ing_tm_kpi"></div></div>
+    <div class="kpi"><div class="kpi-label">Precio promedio carga</div><div class="kpi-value" id="p_pxprom_kpi">—</div><div class="kpi-sub">Ingreso total ÷ TM totales</div></div>
+    <div class="kpi"><div class="kpi-label">Costo / TM</div><div class="kpi-value" id="p_ctm_kpi">—</div><div class="kpi-sub">Costo total ÷ TM estimadas</div></div>
+    <div class="kpi"><div class="kpi-label">Costo / día de viaje</div><div class="kpi-value" style="color:#BA7517" id="p_cdia_kpi">—</div><div class="kpi-sub" id="p_cdia_sub">Costo total ÷ días</div></div>
+    <div class="kpi"><div class="kpi-label">Caja requerida zarpe</div><div class="kpi-value" style="color:#BA7517" id="p_caja_kpi">—</div><div class="kpi-sub">Avituallamiento + anticipo</div></div>
+    <div class="kpi"><div class="kpi-label">Punto de equilibrio</div><div class="kpi-value" id="p_be_tm_kpi">—</div><div class="kpi-sub" id="p_be_tm_sub">TM mínimas</div></div>
+  </div>
+
+  <!-- CASHFLOW + CAJA DIVIDIDA -->
+  <div class="card" style="margin-top:12px">
+    <div class="card-title">Flujo de caja por fase</div>
+    <div class="cashflow">
+      <div class="cf-phase zarpe">
+        <div class="cf-label">Zarpe (salida)</div>
+        <div class="cf-val" id="cf_zarpe">—</div>
+        <div class="cf-items" id="cf_zarpe_det"></div>
+      </div>
+      <div class="cf-phase mar">
+        <div class="cf-label">En el mar</div>
+        <div class="cf-val" style="color:#185FA5">$0</div>
+        <div class="cf-items">Sin movimiento de caja<br>Costo operativo en curso</div>
+      </div>
+      <div class="cf-phase llegada">
+        <div class="cf-label">Llegada (cobro estimado)</div>
+        <div class="cf-val" id="cf_llegada">—</div>
+        <div class="cf-items" id="cf_llegada_det"></div>
+      </div>
+    </div>
+
+    <!-- Desglose caja propia vs crédito -->
+    <div style="margin-top:16px;padding-top:14px;border-top:1px dashed rgba(0,0,0,.1)">
+      <div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">Desglose de la caja de zarpe</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="field" style="margin:0">
+          <label>Crédito de proveedores ($)</label>
+          <input type="number" id="p_credito_prov" value="0" min="0" oninput="sv();cp()" style="border:1.5px solid #e0ddd8;border-radius:7px;padding:8px 10px;font-size:13px;font-family:inherit;color:#1a1a18;background:#fafaf8;outline:none;transition:.2s;width:100%">
+          <div style="font-size:10px;color:#bbb;margin-top:3px">Monto que pagas después (facturas a crédito)</div>
+        </div>
+        <div class="field" style="margin:0">
+          <label>Anticipo tripulación ($)</label>
+          <input type="number" id="p_anticipo" value="0" oninput="sv();cp()" style="border:1.5px solid #e0ddd8;border-radius:7px;padding:8px 10px;font-size:13px;font-family:inherit;color:#1a1a18;background:#fafaf8;outline:none;transition:.2s;width:100%">
+          <div style="font-size:10px;color:#bbb;margin-top:3px">Anticipo zarpe + saldo viaje anterior</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <div style="background:#FAEEDA;border-radius:8px;padding:12px 14px">
+          <div style="font-size:10px;font-weight:700;color:#412402;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Caja total requerida</div>
+          <div style="font-size:18px;font-weight:700;color:#BA7517" id="caja_total_disp">—</div>
+          <div style="font-size:10px;color:#888;margin-top:3px">Avituallamiento + anticipo</div>
+        </div>
+        <div style="background:#FAECE7;border-radius:8px;padding:12px 14px">
+          <div style="font-size:10px;font-weight:700;color:#4A1B0C;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Flujo propio necesario</div>
+          <div style="font-size:18px;font-weight:700;color:#D85A30" id="caja_propia_disp">—</div>
+          <div style="font-size:10px;color:#888;margin-top:3px" id="caja_propia_sub">Total − crédito proveedores</div>
+        </div>
+        <div style="background:#E6F1FB;border-radius:8px;padding:12px 14px">
+          <div style="font-size:10px;font-weight:700;color:#042C53;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Crédito proveedores</div>
+          <div style="font-size:18px;font-weight:700;color:#185FA5" id="caja_credito_disp">—</div>
+          <div style="font-size:10px;color:#888;margin-top:3px">Pago diferido post-viaje</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SENSIBILIDAD -->
+  <div class="card">
+    <div class="card-title">Sensibilidad del margen — TM capturadas</div>
+    <div class="chart-wrap">
+      <canvas id="chartSens" role="img" aria-label="Margen según TM capturadas">Sensibilidad de margen.</canvas>
+    </div>
+  </div>
+
+</div><!-- /screen-proy -->
+
+
+<!-- ══════════════════════════════════════════
+     PANTALLA 2 — CIERRE REAL
+══════════════════════════════════════════ -->
+<div id="screen-cierre" class="screen">
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <div class="card-title">Datos reales</div>
+        <div class="field"><label>N° Entrada / Viaje</label><input type="text" id="r_entrada" oninput="sv();cr()"></div>
+        <div class="grid-2">
+          <div class="field"><label>Días reales en el mar</label><input type="number" id="r_dias" value="0" oninput="sv();cr()"></div>
+          <div class="field"><label>TM reales totales</label><input type="number" id="r_tm" value="0" oninput="sv();cr()"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Ingresos reales por especie</div>
+        <table class="esp-table">
+          <thead><tr><th style="width:28%">Especie</th><th class="right">TM real</th><th class="right">$/TM real</th><th class="right">Total</th></tr></thead>
+          <tbody>
+            <tr><td><span class="esp-name" style="color:#2E75B6">YF</span></td>
+              <td><input type="number" id="rr_yf_tm" value="0" min="0" step="0.5" oninput="sv();cr()"></td>
+              <td><input type="number" id="rr_yf_px" value="0" min="0" oninput="sv();cr()"></td>
+              <td class="esp-tot" id="rr_yf_tot">—</td></tr>
+            <tr><td><span class="esp-name" style="color:#1D9E75">SKJ</span></td>
+              <td><input type="number" id="rr_skj_tm" value="0" min="0" step="0.5" oninput="sv();cr()"></td>
+              <td><input type="number" id="rr_skj_px" value="0" min="0" oninput="sv();cr()"></td>
+              <td class="esp-tot" id="rr_skj_tot">—</td></tr>
+            <tr><td><span class="esp-name" style="color:#BA7517">Rechazo</span></td>
+              <td><input type="number" id="rr_rec_tm" value="0" min="0" step="0.5" oninput="sv();cr()"></td>
+              <td><input type="number" id="rr_rec_px" value="1100" min="0" oninput="sv();cr()"></td>
+              <td class="esp-tot" id="rr_rec_tot">—</td></tr>
+            <tr><td><span class="esp-name" style="color:#534AB7">Pata seca</span></td>
+              <td><input type="number" id="rr_ps_tm" value="0" min="0" step="0.5" oninput="sv();cr()"></td>
+              <td><input type="number" id="rr_ps_px" value="0" min="0" oninput="sv();cr()"></td>
+              <td class="esp-tot" id="rr_ps_tot">—</td></tr>
+            <tr><td><span class="esp-name" style="color:#D85A30">Botella</span></td>
+              <td><input type="number" id="rr_bt_tm" value="0" min="0" step="0.5" oninput="sv();cr()"></td>
+              <td><input type="number" id="rr_bt_px" value="0" min="0" oninput="sv();cr()"></td>
+              <td class="esp-tot" id="rr_bt_tot">—</td></tr>
+            <tr><td><span class="esp-name" style="color:#0F6E56">Dorado</span></td>
+              <td><input type="number" id="rr_do_tm" value="0" min="0" step="0.5" oninput="sv();cr()"></td>
+              <td><input type="number" id="rr_do_px" value="0" min="0" oninput="sv();cr()"></td>
+              <td class="esp-tot" id="rr_do_tot">—</td></tr>
+            <tr id="rr_extra_row" style="display:none">
+              <td><input type="text" id="rr_nom_extra" placeholder="Otra…" style="font-size:12px;border:1.5px solid #e0ddd8;border-radius:5px;padding:4px 6px;width:100%;font-family:inherit;outline:none" oninput="sv();cr()"></td>
+              <td><input type="number" id="rr_extra_tm" value="0" min="0" step="0.5" oninput="sv();cr()"></td>
+              <td><input type="number" id="rr_extra_px" value="0" min="0" oninput="sv();cr()"></td>
+              <td class="esp-tot" id="rr_extra_tot">—</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center">
+          <button onclick="document.getElementById('rr_extra_row').style.display='table-row'" style="font-size:11px;color:#2E75B6;background:none;border:none;cursor:pointer">+ Agregar especie</button>
+          <span style="font-size:12px;color:#666">Total ingreso: <strong id="rr_ing_disp" style="color:#1D9E75">—</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-title">Costos reales</div>
+        <div class="field"><label>Combustible total ($)</label><input type="number" id="r_comb" value="0" oninput="sv();cr()"></div>
+        <div class="field"><label>Otros proveedores total ($)</label><input type="number" id="r_prov" value="0" oninput="sv();cr()"></div>
+        <div class="field"><label>Rol tripulación total ($)</label><input type="number" id="r_rol" value="0" oninput="sv();cr()"></div>
+        <div class="field"><label>Castigos salinidad ($)</label><input type="number" id="r_sal" value="0" oninput="sv();cr()"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Resultado real</div>
+        <div class="grid-2" style="gap:8px;margin-bottom:12px">
+          <div class="kpi"><div class="kpi-label">Ingreso total</div><div class="kpi-value" id="r_ing" style="font-size:18px">—</div></div>
+          <div class="kpi"><div class="kpi-label">Costo total</div><div class="kpi-value" id="r_costo" style="font-size:18px">—</div></div>
+          <div class="kpi"><div class="kpi-label">Margen $</div><div class="kpi-value" id="r_margen" style="font-size:18px">—</div></div>
+          <div class="kpi"><div class="kpi-label">Margen %</div><div class="kpi-value" id="r_mpct" style="font-size:18px">—</div></div>
+        </div>
+        <div class="margin-bar-wrap"><div class="margin-bar-fill" id="r_bar" style="width:0%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:#aaa;margin-top:4px"><span>0%</span><span>Margen</span><span>100%</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Desglose del cierre</div>
+        <table class="data-table">
+          <thead><tr><th>Concepto</th><th class="r">Monto</th><th class="r">$/TM</th><th class="r">%</th></tr></thead>
+          <tbody id="r_tbody"><tr><td colspan="4" style="text-align:center;color:#bbb;padding:16px">Ingresa los datos del viaje</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="grid-4">
+        <div class="kpi"><div class="kpi-label">Costo / día</div><div class="kpi-value" id="r_cdia" style="font-size:16px">—</div></div>
+        <div class="kpi"><div class="kpi-label">Ingreso / TM</div><div class="kpi-value" id="r_itm" style="font-size:16px">—</div></div>
+        <div class="kpi"><div class="kpi-label">Costo / TM</div><div class="kpi-value" id="r_ctm" style="font-size:16px">—</div></div>
+        <div class="kpi"><div class="kpi-label">Resultado</div><div class="kpi-value" id="r_badge" style="font-size:14px">—</div><div class="kpi-sub" id="r_badge_sub"></div></div>
+      </div>
+    </div>
+  </div>
+</div><!-- /cierre -->
+
+
+<!-- ══════════════════════════════════════════
+     PANTALLA 3 — COMPARACIÓN
+══════════════════════════════════════════ -->
+<div id="screen-comp" class="screen">
+  <div id="comp_alert" style="display:none" class="card" style="background:#FAEEDA">
+    <p style="font-size:13px;color:#412402">Completa <strong>Proyección</strong> y <strong>Cierre real</strong> para ver el comparativo.</p>
+  </div>
+  <div id="comp_content">
+    <div class="grid-4" style="margin-bottom:12px">
+      <div class="kpi"><div class="kpi-label">TM proy. vs real</div><div class="kpi-value" id="c_tm">—</div><div class="kpi-sub" id="c_tm_s"></div></div>
+      <div class="kpi"><div class="kpi-label">Ingreso proy. vs real</div><div class="kpi-value" id="c_ing">—</div><div class="kpi-sub" id="c_ing_s"></div></div>
+      <div class="kpi"><div class="kpi-label">Costo proy. vs real</div><div class="kpi-value" id="c_costo">—</div><div class="kpi-sub" id="c_costo_s"></div></div>
+      <div class="kpi"><div class="kpi-label">Margen proy. vs real</div><div class="kpi-value" id="c_margen">—</div><div class="kpi-sub" id="c_margen_s"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Tabla comparativa</div>
+      <table class="data-table">
+        <thead><tr><th style="width:38%">Indicador</th><th style="text-align:right;color:#2E75B6;width:20%">Proyectado</th><th style="text-align:right;width:20%">Real</th><th style="text-align:right;width:22%">Variación</th></tr></thead>
+        <tbody id="comp_tbody"><tr><td colspan="4" style="text-align:center;color:#bbb;padding:16px">Sin datos</td></tr></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">Comparación visual</div>
+      <div class="chart-wrap" style="height:260px">
+        <canvas id="chartComp" role="img" aria-label="Proyectado vs real">Comparación proyectado vs real.</canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Análisis de varianzas</div>
+      <div id="var_txt" style="font-size:13px;line-height:1.9;color:#444"><p style="color:#bbb">Completa ambas pantallas para ver el análisis.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PANTALLA — SIMULACIÓN DE VIAJE
+══════════════════════════════════════════ -->
+<div id="screen-sim" class="screen">
+
+  <!-- Fila superior: escenario + resultado -->
+  <div class="grid-2" style="margin-bottom:0">
+    <div>
+      <div class="card">
+        <div class="card-title">Escenario de regreso</div>
+        <div style="font-size:11px;color:#aaa;margin-bottom:12px">¿Qué pasa si el barco regresa en menos días y con distintas TM? Ajusta los parámetros y compara vs. la proyección original.</div>
+        <div class="field">
+          <label>Días reales en el mar (escenario)</label>
+          <input type="number" id="sim_dias" value="0" min="0" oninput="sv();calcSim()">
+        </div>
+
+        <!-- Precios ancla tomados de proyección -->
+        <div style="background:#f8f7f5;border-radius:8px;padding:10px 12px;margin-bottom:12px">
+          <div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Precios efectivos — tomados de Proyección</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <div style="font-size:10px;color:#888;margin-bottom:2px">Yellow Fin (ponderado tallas)</div>
+              <div style="font-size:15px;font-weight:700;color:#2E75B6" id="sim_px_yf_disp">—</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:#888;margin-bottom:2px">Skipjack (ponderado tallas)</div>
+              <div style="font-size:15px;font-weight:700;color:#1D9E75" id="sim_px_skj_disp">—</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:#888;margin-bottom:2px">Precio ancla base</div>
+              <div style="font-size:13px;font-weight:600;color:#666" id="sim_ancla_disp">—</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:#888;margin-bottom:2px">Precio promedio YF+SKJ</div>
+              <div style="font-size:13px;font-weight:600;color:#1F4E79" id="sim_px_prom_disp">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="field"><label>TM YF capturadas</label><input type="number" id="sim_tm_yf" value="0" min="0" step="0.5" oninput="sv();calcSim()"></div>
+          <div class="field"><label>TM SKJ capturadas</label><input type="number" id="sim_tm_skj" value="0" min="0" step="0.5" oninput="sv();calcSim()"></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label>TM Rechazo</label><input type="number" id="sim_tm_rec" value="0" min="0" step="0.5" oninput="sv();calcSim()"></div>
+          <div class="field"><label>TM Comercio (total)</label><input type="number" id="sim_tm_com" value="0" min="0" step="0.5" oninput="sv();calcSim()"></div>
+        </div>
+
+        <!-- Total TM -->
+        <div style="display:flex;align-items:center;justify-content:space-between;background:#f8f7f5;border-radius:7px;padding:8px 14px;margin-bottom:10px">
+          <span style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.5px">Total toneladas cargadas</span>
+          <span style="font-size:20px;font-weight:700;color:#1F4E79" id="sim_tm_total_disp">0 TM</span>
+        </div>
+
+        <div class="field">
+          <label>Precio promedio comercio ($/TM)</label>
+          <input type="number" id="sim_px_com" value="0" min="0" oninput="sv();calcSim()">
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <!-- Resultado del escenario — 4 KPIs grandes -->
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-title">Resultado del escenario</div>
+
+        <!-- Fila 1: Ingreso neto + Costo de viaje -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div style="background:#E1F5EE;border-radius:8px;padding:14px 16px">
+            <div style="font-size:10px;font-weight:700;color:#085041;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Ingreso neto</div>
+            <div style="font-size:22px;font-weight:700;color:#1D9E75" id="sim_ing">—</div>
+            <div style="font-size:10px;color:#0F6E56;margin-top:4px" id="sim_ing_sub"></div>
+          </div>
+          <div style="background:#FAECE7;border-radius:8px;padding:14px 16px">
+            <div style="font-size:10px;font-weight:700;color:#4A1B0C;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Costo del viaje</div>
+            <div style="font-size:22px;font-weight:700;color:#D85A30" id="sim_costo">—</div>
+            <div style="font-size:10px;color:#888;margin-top:4px">Avituallamiento + Rol tripulación</div>
+          </div>
+        </div>
+
+        <!-- Fila 2: Remanente inventario + Margen con inventario -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+          <div style="background:#E6F1FB;border-radius:8px;padding:14px 16px">
+            <div style="font-size:10px;font-weight:700;color:#042C53;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Remanente inventario</div>
+            <div style="font-size:22px;font-weight:700;color:#185FA5" id="sim_inv_rem_kpi">—</div>
+            <div style="font-size:10px;color:#888;margin-top:4px">Capital que regresa con el barco</div>
+          </div>
+          <div style="background:#f8f6f2;border-radius:8px;padding:14px 16px;border:1.5px solid #e0ddd8">
+            <div style="font-size:10px;font-weight:700;color:#1a1a18;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Margen con inventario</div>
+            <div style="font-size:22px;font-weight:700" id="sim_margen">—</div>
+            <div style="font-size:10px;color:#888;margin-top:4px" id="sim_margen_sub">Ingreso − costo efectivo del viaje</div>
+          </div>
+        </div>
+
+        <!-- Campo de reposición para próxima salida -->
+        <div style="border-top:1px dashed #e0ddd8;padding-top:12px">
+          <div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Próxima salida</div>
+          <div style="font-size:11px;color:#888;margin-bottom:10px">¿Cuánto necesitas reponer del inventario que se consumió?</div>
+          <div id="repo_container"></div>
+          <button onclick="addRepoItem()" style="font-size:11px;color:#2E75B6;background:none;border:none;cursor:pointer;padding:0;margin-top:4px">+ Agregar ítem a reponer</button>
+
+          <!-- Resumen próxima salida -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px">
+            <div style="background:#E1F5EE;border-radius:7px;padding:10px 12px;text-align:center">
+              <div style="font-size:10px;font-weight:700;color:#085041;text-transform:uppercase;margin-bottom:4px">Remanente inventario</div>
+              <div style="font-size:16px;font-weight:700" id="sim_repo_avit">—</div>
+              <div style="font-size:10px;color:#888;margin-top:2px">ya está pagado — no se desembolsa</div>
+            </div>
+            <div style="background:#FAECE7;border-radius:7px;padding:10px 12px;text-align:center">
+              <div style="font-size:10px;font-weight:700;color:#4A1B0C;text-transform:uppercase;margin-bottom:4px">Reposición a comprar</div>
+              <div style="font-size:16px;font-weight:700;color:#D85A30" id="sim_repo_total">—</div>
+              <div style="font-size:10px;color:#888;margin-top:2px">inventario nuevo que debes adquirir</div>
+            </div>
+            <div style="background:#E1F5EE;border-radius:7px;padding:10px 12px;text-align:center">
+              <div style="font-size:10px;font-weight:700;color:#085041;text-transform:uppercase;margin-bottom:4px">Ahorro vs salida anterior</div>
+              <div style="font-size:16px;font-weight:700" id="sim_repo_ahorro">—</div>
+              <div style="font-size:10px;color:#888;margin-top:2px">costo ant. − remanente − reposición</div>
+            </div>
+          </div>
+          <div style="background:#f0f7ff;border-radius:7px;padding:10px 14px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+            <div>
+              <span style="font-size:12px;font-weight:700;color:#042C53">Costo estimado próxima salida</span>
+              <div style="font-size:10px;color:#888;margin-top:2px" id="sim_repo_ref"></div>
+            </div>
+            <span style="font-size:20px;font-weight:700;color:#1F4E79" id="sim_repo_costo_prox">—</span>
+          </div>
+        </div>
+
+        <div id="sim_inv_detalle"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Escenario vs. Proyección original</div>
+        <table class="data-table">
+          <thead><tr><th>Indicador</th><th style="text-align:right;color:#2E75B6">Proyectado</th><th style="text-align:right">Escenario</th><th style="text-align:right">Diferencia</th></tr></thead>
+          <tbody id="sim_comp_tbody"><tr><td colspan="4" style="text-align:center;color:#bbb;padding:12px">Ingresa los días y TM del escenario</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- INVENTARIO — ancho completo -->
+  <div class="card" style="margin-top:12px">
+    <div class="card-title">Inventario de salida y consumo durante el viaje <span class="pill" id="inv_pill">0 ítems</span></div>
+    <div style="font-size:11px;color:#aaa;margin-bottom:6px">Ingresa lo que sale con el barco, el consumo diario y el costo unitario. El simulador calcula cuánto se consumió (costo real del viaje) y cuánto queda para la próxima salida (capital que regresa).</div>
+    <div style="font-size:11px;background:#E6F1FB;border-radius:6px;padding:8px 12px;margin-bottom:12px;color:#042C53;line-height:1.6">
+      <strong>Ejemplo:</strong> Combustible: 20,000 gal inventario de salida · 1,000 gal/día · $2.10/gal → 10 días = 10,000 gal consumidos (<strong>$21,000 costo del viaje</strong>) · 10,000 gal remanentes (<strong>$21,000 para próxima salida</strong>)
+    </div>
+    <!-- Headers -->
+    <div class="inv-header-row">
+      <span>Ítem</span>
+      <span style="text-align:center">Unidad</span>
+      <span style="text-align:right;line-height:1.3">Inventario<br>de salida</span>
+      <span style="text-align:right;line-height:1.3">Consumo<br>x día</span>
+      <span style="text-align:right;line-height:1.3">$ /<br>unidad</span>
+      <span style="color:#D85A30;text-align:right;line-height:1.3">Consumido<br>en viaje</span>
+      <span style="color:#1D9E75;text-align:right;line-height:1.3">Remanente<br>próxima salida</span>
+      <span></span>
+    </div>
+    <div id="inv_container"></div>
+    <button onclick="addInvItem()" style="margin-top:8px;font-size:11px;color:#2E75B6;background:none;border:none;cursor:pointer;padding:0">+ Agregar ítem</button>
+  </div>
+
+  <!-- Resumen + semáforo en 2 cols -->
+  <div class="grid-2" style="margin-top:0">
+    <div class="card">
+      <div class="card-title">Resumen de consumo del viaje</div>
+      <div id="inv_resumen_container"><p style="color:#bbb;font-size:12px">Ingresa el inventario con costos y los días del escenario</p></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Estado del inventario al llegar</div>
+      <div id="inv_status_container"><p style="color:#bbb;font-size:12px">Ingresa el inventario y los días del escenario para ver el estado</p></div>
+    </div>
+  </div>
+
+</div><!-- /sim -->
+
+<!-- ══════════════════════════════════════════
+     PANTALLA — AUDITORÍA DE CÁLCULO
+══════════════════════════════════════════ -->
+<div id="screen-auditoria" class="screen">
+
+  <!-- ① DESGLOSE TALLAS / PRECIOS / CANTIDADES -->
+  <div class="card">
+    <div class="card-title">① Desglose de captura por talla — precios y cantidades</div>
+    <div style="font-size:11px;color:#aaa;margin-bottom:12px">Precio ancla base: <strong id="aud_ancla">—</strong> · Cada fila muestra TM estimadas × precio efectivo de esa talla</div>
+
+    <div style="font-size:11px;font-weight:700;color:#2E75B6;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Yellow Fin</div>
+    <table class="data-table" style="margin-bottom:16px">
+      <thead><tr><th>Talla</th><th class="r">Diferencial</th><th class="r">Precio efectivo</th><th class="r">% de TM YF</th><th class="r">TM estimadas</th><th class="r">Ingreso</th></tr></thead>
+      <tbody id="aud_yf_tbody"></tbody>
+    </table>
+
+    <div style="font-size:11px;font-weight:700;color:#1D9E75;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Skipjack</div>
+    <table class="data-table" style="margin-bottom:16px">
+      <thead><tr><th>Talla</th><th class="r">Diferencial</th><th class="r">Precio efectivo</th><th class="r">% de TM SKJ</th><th class="r">TM estimadas</th><th class="r">Ingreso</th></tr></thead>
+      <tbody id="aud_skj_tbody"></tbody>
+    </table>
+
+    <div style="font-size:11px;font-weight:700;color:#888;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Pesca de comercio y otros</div>
+    <table class="data-table">
+      <thead><tr><th>Especie</th><th class="r">TM</th><th class="r">Precio ($/TM)</th><th class="r">Ingreso</th></tr></thead>
+      <tbody id="aud_com_tbody"></tbody>
+    </table>
+
+    <div style="background:#E1F5EE;border-radius:8px;padding:12px 16px;margin-top:12px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;font-weight:700;color:#085041">TOTAL INGRESO ESTIMADO</span>
+      <span style="font-size:18px;font-weight:700;color:#1D9E75" id="aud_ing_total">—</span>
+    </div>
+  </div>
+
+  <!-- ② DESGLOSE COSTOS -->
+  <div class="card">
+    <div class="card-title">② Desglose completo de costos</div>
+    <table class="data-table">
+      <thead><tr><th>Concepto</th><th class="r">Detalle del cálculo</th><th class="r">Monto</th><th class="r">$/TM</th></tr></thead>
+      <tbody id="aud_costo_tbody"></tbody>
+    </table>
+    <div style="background:#FAECE7;border-radius:8px;padding:12px 16px;margin-top:12px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;font-weight:700;color:#4A1B0C">TOTAL COSTOS ESTIMADOS</span>
+      <span style="font-size:18px;font-weight:700;color:#D85A30" id="aud_costo_total">—</span>
+    </div>
+  </div>
+
+  <!-- ③ ROL DE TRIPULACIÓN -->
+  <div class="card">
+    <div class="card-title">③ Rol de tripulación</div>
+    <table class="data-table">
+      <thead><tr><th>Concepto</th><th class="r">Valor</th></tr></thead>
+      <tbody id="aud_rol_tbody"></tbody>
+    </table>
+    <div style="background:#E6F1FB;border-radius:8px;padding:12px 16px;margin-top:12px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;font-weight:700;color:#042C53">TOTAL ROL DE TRIPULACIÓN</span>
+      <span style="font-size:18px;font-weight:700;color:#185FA5" id="aud_rol_total">—</span>
+    </div>
+  </div>
+
+  <!-- ④ RESUMEN VERIFICACIÓN -->
+  <div class="card">
+    <div class="card-title">④ Verificación — cuadre de ingresos y costos</div>
+    <table class="data-table">
+      <thead><tr><th>Línea</th><th class="r">Monto</th></tr></thead>
+      <tbody id="aud_verify_tbody"></tbody>
+    </table>
+  </div>
+
+</div><!-- /auditoria -->
+
+<div style="text-align:center;font-size:11px;color:#ccc;margin-top:24px">ATUNTRO S.A. · María Fátima · Simulador v4.1</div>
+</div>
+
+<script>
+const SK='atuntro_mf_v4';
+let chartSens=null, chartComp=null;
+
+// ── AVITUALLAMIENTO Y TRABAJOS DE SALIDA (antes "Otros proveedores") ──
+let provs=[
+  {name:'Combustible',max:200000,value:0},
+  {name:'Víveres',max:20000,value:0},
+  {name:'Carnada',max:10000,value:0},
+  {name:'Sal',max:8000,value:0},
+  {name:'Repuestos',max:15000,value:0},
+  {name:'Muellaje',max:5000,value:0},
+  {name:'Trabajos de salida',max:10000,value:0},
+];
+
+function renderProvs(){
+  const c=document.getElementById('prov_container');
+  if(!c) return;
+  c.innerHTML=provs.map((p,i)=>`
+    <div class="prov-row">
+      <input class="prov-name" type="text" value="${eh(p.name)}" placeholder="Categoría"
+        oninput="provs[${i}].name=this.value;sv()">
+      <input type="range" id="pslider${i}" min="0" max="${p.max}" value="${p.value}" step="100"
+        oninput="provs[${i}].value=+this.value;document.getElementById('pmanual${i}').value=this.value;updProvPill();sv();cp()">
+      <input type="number" id="pmanual${i}" class="prov-manual" value="${p.value}" min="0" step="100" placeholder="0"
+        oninput="const v=+this.value||0;provs[${i}].value=v;const sl=document.getElementById('pslider${i}');if(v>provs[${i}].max){provs[${i}].max=Math.ceil(v/1000)*1000;sl.max=provs[${i}].max;}sl.value=v;updProvPill();sv();cp()">
+      <button onclick="provs.splice(${i},1);renderProvs();sv();cp()" style="font-size:15px;color:#ccc;background:none;border:none;cursor:pointer;padding:0 0 0 2px" title="Eliminar">×</button>
+    </div>`).join('');
+  updProvPill();
+}
+
+function updProvLabel(i){
+  updProvPill();
+}
+
+function updProvPill(){
+  const t=provs.reduce((s,p)=>s+p.value,0);
+  const p=document.getElementById('prov_pill');
+  if(p) p.textContent=fmt(t);
+}
+
+function addProv(){
+  provs.push({name:'Nueva',max:15000,value:0});
+  renderProvs();sv();cp();
+}
+
+function getTotalProv(){return provs.reduce((s,p)=>s+p.value,0);}
+
+// ── TALLAS ──
+function syncTalla(sp){
+  const ids=sp==='yf'
+    ?['tl_yf_g','tl_yf_m','tl_yf_b','tl_yf_ch','tl_yf_xs']
+    :['tl_skj_g','tl_skj_b','tl_skj_ch','tl_skj_xs'];
+  const vids=sp==='yf'
+    ?['tv_yf_g','tv_yf_m','tv_yf_b','tv_yf_ch','tv_yf_xs']
+    :['tv_skj_g','tv_skj_b','tv_skj_ch','tv_skj_xs'];
+  const vals=ids.map(id=>parseInt(document.getElementById(id).value)||0);
+  const sum=vals.reduce((a,b)=>a+b,0);
+  vids.forEach((vid,i)=>{const el=document.getElementById(vid);if(el)el.textContent=vals[i]+'%';});
+  const sEl=document.getElementById(sp+'_talla_sum');
+  if(sEl){sEl.textContent=sum+'%';sEl.style.color=sum===100?'#1a1a18':'#D85A30';}
+}
+
+function yfDiff(){
+  const g=+document.getElementById('tl_yf_g').value/100;
+  const m=+document.getElementById('tl_yf_m').value/100;
+  const b=+document.getElementById('tl_yf_b').value/100;
+  const ch=+document.getElementById('tl_yf_ch').value/100;
+  const xs=+document.getElementById('tl_yf_xs').value/100;
+  const dg=+document.getElementById('d_yf_g').value||0;
+  const dm=+document.getElementById('d_yf_m').value||0;
+  const db=+document.getElementById('d_yf_b').value||0;
+  const dch=+document.getElementById('d_yf_ch').value||0;
+  const dxs=+document.getElementById('d_yf_xs').value||0;
+  const s=g+m+b+ch+xs;
+  return s>0?(g*dg+m*dm+b*db+ch*dch+xs*dxs)/s:0;
+}
+
+function skjDiff(){
+  const g=+document.getElementById('tl_skj_g').value/100;
+  const b=+document.getElementById('tl_skj_b').value/100;
+  const ch=+document.getElementById('tl_skj_ch').value/100;
+  const xs=+document.getElementById('tl_skj_xs').value/100;
+  const dg=+document.getElementById('d_skj_g').value||0;
+  const db=+document.getElementById('d_skj_b').value||0;
+  const dch=+document.getElementById('d_skj_ch').value||0;
+  const dxs=+document.getElementById('d_skj_xs').value||0;
+  const s=g+b+ch+xs;
+  return s>0?(g*dg+b*db+ch*dch+xs*dxs)/s:0;
+}
+
+// ── BARRA DE CARGA ──
+const SEG_COLORS={yf:'#2E75B6',skj:'#1D9E75',rec:'#BA7517',ps:'#534AB7',bt:'#D85A30',do:'#0F6E56',extra:'#888780'};
+const SEG_LABELS={yf:'YF',skj:'SKJ',rec:'Rechazo',ps:'Pata seca',bt:'Botella',do:'Dorado',extra:'Otro'};
+
+function updCargaBar(especies,cap){
+  const total=especies.reduce((s,e)=>s+e.tm,0);
+  const track=document.getElementById('carga_track');
+  const legend=document.getElementById('carga_legend');
+  const warn=document.getElementById('carga_warning');
+  const usado=document.getElementById('carga_usada');
+  const capEl=document.getElementById('carga_cap');
+  const pill=document.getElementById('tm_total_pill');
+
+  if(usado) usado.textContent=total.toFixed(1);
+  if(capEl) capEl.textContent=cap;
+  if(pill) pill.textContent=total.toFixed(1)+' TM';
+  if(warn) warn.style.display=total>cap?'block':'none';
+  if(usado) usado.style.color=total>cap?'#D85A30':'#1F4E79';
+
+  if(!track) return;
+  const libre=Math.max(0,cap-total);
+  const base=Math.max(cap,total);
+
+  let html='';
+  especies.forEach(e=>{
+    if(e.tm<=0) return;
+    const w=(e.tm/base*100).toFixed(2);
+    html+=`<div class="carga-seg" style="width:${w}%;background:${e.color}" title="${e.label}: ${e.tm} TM"></div>`;
+  });
+  if(libre>0){
+    const w=(libre/base*100).toFixed(2);
+    html+=`<div class="carga-seg seg-libre" style="width:${w}%"></div>`;
+  }
+  track.innerHTML=html||'<div class="carga-seg seg-libre" style="width:100%"></div>';
+
+  // leyenda
+  let leg='';
+  especies.forEach(e=>{
+    if(e.tm<=0) return;
+    leg+=`<span class="carga-leg-item"><span class="carga-leg-dot" style="background:${e.color}"></span>${e.label}: ${e.tm.toFixed(1)} TM (${base>0?(e.tm/base*100).toFixed(0):'0'}%)</span>`;
+  });
+  if(libre>0) leg+=`<span class="carga-leg-item"><span class="carga-leg-dot" style="background:#e0ddd8"></span>Libre: ${libre.toFixed(1)} TM</span>`;
+  if(legend) legend.innerHTML=leg;
+}
+
+// ── CALC PROYECCIÓN ──
+let SPROY=null;
+
+function cp(){
+  const dias =+document.getElementById('p_dias').value||0;
+  const cap  =+document.getElementById('p_cap').value||180;
+  const ancla=+document.getElementById('p_ancla').value||0;
+  const rolTM=+document.getElementById('p_rol_tm').value||0;
+  const sal  =+document.getElementById('p_sal').value||0;
+  const ant  =+document.getElementById('p_anticipo').value||0;
+
+  // TM absolutas por especie
+  const tm_yf  =+document.getElementById('tm_yf').value||0;
+  const tm_skj =+document.getElementById('tm_skj').value||0;
+  const tm_rec =+document.getElementById('tm_rec').value||0;
+  const tm_ps  =+document.getElementById('tm_ps').value||0;
+  const tm_bt  =+document.getElementById('tm_bt').value||0;
+  const tm_do  =+document.getElementById('tm_do').value||0;
+  const tm_extra=+document.getElementById('tm_extra').value||0;
+  const px_rec =+document.getElementById('px_rec').value||0;
+  const px_ps  =+document.getElementById('px_ps').value||0;
+  const px_bt  =+document.getElementById('px_bt').value||0;
+  const px_do  =+document.getElementById('px_do').value||0;
+  const px_extra=+document.getElementById('px_extra').value||0;
+  const tm_total=tm_yf+tm_skj+tm_rec+tm_ps+tm_bt+tm_do+tm_extra;
+
+  // Precios efectivos — ambos parten del mismo precio ancla
+  const diff_yf =yfDiff();
+  const diff_skj=skjDiff();
+  const px_yf   =ancla+diff_yf;
+  const px_skj  =ancla+diff_skj;
+
+  // Display precios efectivos
+  setText('px_yf_disp', ancla>0?'$'+Math.round(px_yf):'—');
+  setText('px_skj_disp', ancla>0?'$'+Math.round(px_skj):'—');
+  setText('px_yf_ef', ancla>0?'$'+Math.round(px_yf)+'/TM':'—');
+  setText('px_skj_ef', ancla>0?'$'+Math.round(px_skj)+'/TM':'—');
+
+  // Ingresos por especie
+  const ing_yf  =tm_yf*px_yf;
+  const ing_skj =tm_skj*px_skj;
+  const ing_rec =tm_rec*px_rec;
+  const ing_ps  =tm_ps*px_ps;
+  const ing_bt  =tm_bt*px_bt;
+  const ing_do  =tm_do*px_do;
+  const ing_extra=tm_extra*px_extra;
+  const ing_total=ing_yf+ing_skj+ing_rec+ing_ps+ing_bt+ing_do+ing_extra;
+
+  // Subtotales en tabla
+  const espRows=[
+    ['tot_yf',ing_yf,tm_yf,tm_total,'pct_yf'],
+    ['tot_skj',ing_skj,tm_skj,tm_total,'pct_skj'],
+    ['tot_rec',ing_rec,tm_rec,tm_total,'pct_rec'],
+    ['tot_ps',ing_ps,tm_ps,tm_total,'pct_ps'],
+    ['tot_bt',ing_bt,tm_bt,tm_total,'pct_bt'],
+    ['tot_do',ing_do,tm_do,tm_total,'pct_do'],
+    ['tot_extra',ing_extra,tm_extra,tm_total,'pct_extra'],
+  ];
+  espRows.forEach(([tid,ing,tm,tot,pid])=>{
+    const te=document.getElementById(tid);
+    const pe=document.getElementById(pid);
+    if(te) te.textContent=ing>0?fmt(ing):'—';
+    if(pe) pe.textContent=tot>0?(tm/tot*100).toFixed(0)+'%':'—';
+  });
+  setText('ing_total_disp',ing_total>0?fmt(ing_total):'—');
+
+  // Barra de carga
+  updCargaBar([
+    {tm:tm_yf,color:'#2E75B6',label:'YF'},
+    {tm:tm_skj,color:'#1D9E75',label:'SKJ'},
+    {tm:tm_rec,color:'#BA7517',label:'Rechazo'},
+    {tm:tm_ps,color:'#534AB7',label:'Pata seca'},
+    {tm:tm_bt,color:'#D85A30',label:'Botella'},
+    {tm:tm_do,color:'#0F6E56',label:'Dorado'},
+    {tm:tm_extra,color:'#888780',label:'Otro'},
+  ], cap);
+
+  // Costos — combustible incluido en avituallamiento (provs)
+  // SAL es castigo al ingreso, no costo adicional
+  const prov =getTotalProv();
+  const rol  =tm_total*rolTM;
+  const costo=prov+rol;           // sin sal
+  const ing_neta=ing_total-sal;   // sal descuenta el ingreso
+  updProvPill();
+
+  // Resultados
+  const margen=ing_neta-costo;
+  const mpct  =ing_neta>0?margen/ing_neta*100:0;
+  const ctm   =tm_total>0?costo/tm_total:0;
+  const itm   =tm_total>0?ing_neta/tm_total:0;
+  const be_tm =itm>0?costo/itm:0;
+  const be_pct=tm_total>0?be_tm/tm_total*100:0;
+
+  // Breakeven box
+  setText('p_costo_total',fmt(costo));
+  setText('p_tm_be',be_tm>0?be_tm.toFixed(1)+' TM':'—');
+  setText('p_tm_be_sub',tm_total>0?be_pct.toFixed(1)+'% de '+tm_total.toFixed(1)+' TM estimadas':'de TM estimadas');
+  const mEl=document.getElementById('p_margen');
+  if(mEl){mEl.textContent=ing_neta>0||ing_total>0?fmt(margen):'—';mEl.style.color=margen>=0?'#4AE3A8':'#FFAAAA';}
+  setText('p_margen_pct',ing_neta>0?mpct.toFixed(1)+'% sobre ingresos netos':'');
+
+  // KPIs
+  const pxProm = tm_total>0 ? ing_neta/tm_total : 0;
+  const cDia   = dias>0 ? costo/dias : 0;
+  setText('p_ing_kpi',ing_neta>0?fmt(ing_neta):'—');
+  setText('p_ing_tm_kpi',(sal>0?'Bruto '+fmt(ing_total)+' − castigo '+fmt(sal):(itm>0?fmt(Math.round(itm))+'/TM':'')));
+  setText('p_pxprom_kpi', pxProm>0?'$'+Math.round(pxProm)+'/TM':'—');
+  const cEl=document.getElementById('p_ctm_kpi');
+  if(cEl){cEl.textContent=ctm>0?'$'+Math.round(ctm):'—';}
+  const cdEl=document.getElementById('p_cdia_kpi');
+  if(cdEl){cdEl.textContent=cDia>0?'$'+Math.round(cDia):'—';}
+  setText('p_cdia_sub', dias>0?'sobre '+dias+' días estimados':'Ingresa días del viaje');
+  setText('p_caja_kpi',fmt(prov+ant));
+  setText('p_be_tm_kpi',be_tm>0?be_tm.toFixed(1)+' TM':'—');
+  setText('p_be_tm_sub',be_pct>0?be_pct.toFixed(1)+'% de la carga estimada':'');
+
+  // Caja dividida: propia vs crédito
+  const credito=+document.getElementById('p_credito_prov').value||0;
+  const cajaTot=prov+ant;
+  const cajaPropia=Math.max(0, cajaTot-credito);
+  setText('caja_total_disp', fmt(cajaTot));
+  setText('caja_propia_disp', fmt(cajaPropia));
+  setText('caja_credito_disp', fmt(credito));
+  setText('caja_propia_sub', credito>0?'('+fmt(cajaTot)+' − crédito '+fmt(credito)+')':'Sin crédito registrado');
+
+  // TM por talla YF
+  const yfSliders=[['tl_yf_g','ttm_yf_g'],['tl_yf_m','ttm_yf_m'],['tl_yf_b','ttm_yf_b'],['tl_yf_ch','ttm_yf_ch'],['tl_yf_xs','ttm_yf_xs']];
+  const yfTallaSum=yfSliders.reduce((s,[id])=>s+(+document.getElementById(id).value||0),0);
+  yfSliders.forEach(([id,tid])=>{
+    const pct=+document.getElementById(id).value||0;
+    const tmT=tm_yf*(yfTallaSum>0?pct/yfTallaSum:0);
+    const el=document.getElementById(tid);
+    if(el) el.textContent=tm_yf>0?tmT.toFixed(1)+'t':'—';
+  });
+
+  // TM por talla SKJ
+  const skjSliders=[['tl_skj_g','ttm_skj_g'],['tl_skj_b','ttm_skj_b'],['tl_skj_ch','ttm_skj_ch'],['tl_skj_xs','ttm_skj_xs']];
+  const skjTallaSum=skjSliders.reduce((s,[id])=>s+(+document.getElementById(id).value||0),0);
+  skjSliders.forEach(([id,tid])=>{
+    const pct=+document.getElementById(id).value||0;
+    const tmT=tm_skj*(skjTallaSum>0?pct/skjTallaSum:0);
+    const el=document.getElementById(tid);
+    if(el) el.textContent=tm_skj>0?tmT.toFixed(1)+'t':'—';
+  });
+
+  // Flujo de caja
+  const cfz=-(prov+ant);
+  setText('cf_zarpe',fmt(cfz));
+  setText('cf_zarpe_det',['Avituallamiento '+fmt(prov),'Anticipo '+fmt(ant)].join('\n'));
+  setText('cf_llegada',ing_neta>0?fmt(ing_neta):'—');
+  const llegDet=[
+    tm_yf>0?'YF '+fmt(ing_yf):'',
+    tm_skj>0?'SKJ '+fmt(ing_skj):'',
+    tm_rec>0?'Rechazo '+fmt(ing_rec):'',
+    tm_ps>0?'Pata seca '+fmt(ing_ps):'',
+    tm_bt>0?'Botella '+fmt(ing_bt):'',
+    tm_do>0?'Dorado '+fmt(ing_do):'',
+    tm_extra>0?'Otro '+fmt(ing_extra):'',
+    sal>0?'− Castigo sal ('+fmt(sal)+')':'',
+  ].filter(Boolean).join('\n');
+  setText('cf_llegada_det',llegDet);
+
+  // Guardar para comparativo y simulación
+  SPROY={tm:tm_total,dias,ing:ing_neta,ingBruto:ing_total,sal,costo,margen,mpct,ctm,itm};
+
+  buildSensChart(costo,itm,tm_total,cap);
+}
+
+function buildSensChart(costoFijo,ingTM,tmEst,cap){
+  if(!window.Chart) return;
+  const max=Math.ceil(Math.max(tmEst,cap)*1.2/5)*5;
+  const labels=[],data=[],colors=[];
+  for(let t=0;t<=max;t+=5){
+    labels.push(t);
+    const v=Math.round(t*ingTM-costoFijo);
+    data.push(v);
+    colors.push(v>=0?'#1D9E75':'#D85A30');
+  }
+  if(chartSens) chartSens.destroy();
+  const ctx=document.getElementById('chartSens');
+  if(!ctx) return;
+  chartSens=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[{label:'Margen',data,backgroundColor:colors,borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'$'+c.parsed.y.toLocaleString()}}},
+      scales:{
+        x:{title:{display:true,text:'TM capturadas',font:{size:11}},ticks:{color:'#888',font:{size:11}},grid:{color:'rgba(0,0,0,0.04)'}},
+        y:{ticks:{color:'#888',font:{size:11},callback:v=>'$'+v.toLocaleString()},grid:{color:'rgba(0,0,0,0.04)'}}
+      }
+    }
+  });
+}
+
+// ── CALC CIERRE REAL ──
+let SREAL=null;
+
+function cr(){
+  const dias=+document.getElementById('r_dias').value||0;
+  const tm  =+document.getElementById('r_tm').value||0;
+  const comb=+document.getElementById('r_comb').value||0;
+  const prov=+document.getElementById('r_prov').value||0;
+  const rol =+document.getElementById('r_rol').value||0;
+  const sal =+document.getElementById('r_sal').value||0;
+
+  const specs=[
+    ['rr_yf','YF'],['rr_skj','SKJ'],['rr_rec','Rechazo'],
+    ['rr_ps','Pata seca'],['rr_bt','Botella'],['rr_do','Dorado'],['rr_extra','Otro'],
+  ];
+  let ing_total=0;
+  const detalle=[];
+  specs.forEach(([pref,label])=>{
+    const t=+document.getElementById(pref+'_tm')?.value||0;
+    const p=+document.getElementById(pref+'_px')?.value||0;
+    const nom=pref==='rr_extra'?(document.getElementById('rr_nom_extra')?.value||label):label;
+    const sub=t*p;
+    ing_total+=sub;
+    const el=document.getElementById(pref+'_tot');
+    if(el) el.textContent=sub>0?fmt(sub):'—';
+    if(sub>0) detalle.push([nom,sub,t>0?sub/t:0]);
+  });
+  setText('rr_ing_disp',ing_total>0?fmt(ing_total):'—');
+
+  // SAL: castigo al ingreso, no costo
+  const ing_neta=ing_total-sal;
+  const costo=comb+prov+rol;   // sin sal
+  const margen=ing_neta-costo;
+  const mpct=ing_neta>0?margen/ing_neta*100:0;
+  const ctm=tm>0?costo/tm:0;
+  const itm=tm>0?ing_neta/tm:0;
+  const cdia=dias>0?costo/dias:0;
+
+  // resultado KPIs
+  setText('r_ing',fmt(ing_neta));
+  setText('r_costo',fmt(costo));
+  const mEl=document.getElementById('r_margen');
+  if(mEl){mEl.textContent=fmt(margen);mEl.style.color=margen>=0?'#1D9E75':'#D85A30';}
+  const mpEl=document.getElementById('r_mpct');
+  if(mpEl){mpEl.textContent=mpct.toFixed(1)+'%';mpEl.style.color=margen>=0?'#1D9E75':'#D85A30';}
+  const bar=document.getElementById('r_bar');
+  if(bar){bar.style.width=Math.min(100,Math.max(0,mpct)).toFixed(0)+'%';bar.style.background=margen>=0?'#1D9E75':'#D85A30';}
+
+  // Tabla desglose
+  const tbody=document.getElementById('r_tbody');
+  if(tbody&&(ing_total>0||costo>0)){
+    const rows=[
+      ...detalle.map(([l,v,ptm])=>[l,v,ptm,true,false]),
+      sal>0?['− Castigo salinidad',-sal,0,false,false]:null,
+      ['= INGRESO NETO',ing_neta,itm,true,true],
+      ['Combustible',-comb,tm>0?-comb/tm:0,false,false],
+      ['Avituallamiento',-prov,tm>0?-prov/tm:0,false,false],
+      ['Rol tripulación',-rol,tm>0?-rol/tm:0,false,false],
+      ['= TOTAL COSTOS',-costo,-ctm,false,true],
+      ['MARGEN NETO',margen,tm>0?margen/tm:0,margen>=0,true],
+    ].filter(Boolean);
+    tbody.innerHTML=rows.map(([lbl,monto,ptm,pos,tot])=>`
+      <tr class="${tot?'total-row':''}">
+        <td>${lbl}</td>
+        <td class="r" style="color:${pos?'#1D9E75':'#D85A30'};font-weight:${tot?700:400}">${monto!==0?fmt(monto):'—'}</td>
+        <td class="r" style="color:#888">${ptm!==0?'$'+Math.round(ptm):'—'}</td>
+        <td class="r" style="color:#aaa">${(tot&&ing_neta>0)?Math.abs(monto/ing_neta*100).toFixed(0)+'%':''}</td>
+      </tr>`).join('');
+  }
+
+  // KPIs eficiencia
+  const cEl=document.getElementById('r_cdia');
+  if(cEl) cEl.textContent=dias>0?'$'+Math.round(cdia):'—';
+  const iEl=document.getElementById('r_itm');
+  if(iEl) iEl.textContent=tm>0?'$'+Math.round(itm):'—';
+  const ctEl=document.getElementById('r_ctm');
+  if(ctEl) ctEl.textContent=tm>0?'$'+Math.round(ctm):'—';
+
+  const rb=document.getElementById('r_badge');
+  const rs=document.getElementById('r_badge_sub');
+  if(rb&&tm>0){
+    if(mpct>=20){rb.innerHTML='<span class="badge green">Excelente</span>';if(rs)rs.textContent='Margen ≥20%';}
+    else if(mpct>=10){rb.innerHTML='<span class="badge amber">Bueno</span>';if(rs)rs.textContent='Margen 10–20%';}
+    else if(margen>=0){rb.innerHTML='<span class="badge amber">Marginal</span>';if(rs)rs.textContent='Margen <10%';}
+    else{rb.innerHTML='<span class="badge red">Pérdida</span>';if(rs)rs.textContent='Ingreso < Costo';}
+  }
+
+  SREAL={tm,dias,ing:ing_neta,ingBruto:ing_total,sal,costo,margen,mpct,ctm,itm};
+}
+
+// ── COMPARACIÓN ──
+function calcComp(){
+  const p=SPROY,r=SREAL;
+  const alertEl=document.getElementById('comp_alert');
+  const cont=document.getElementById('comp_content');
+  if(!p||!r||!p.tm||!r.tm){
+    if(alertEl) alertEl.style.display='block';
+    if(cont) cont.style.display='none';
+    return;
+  }
+  if(alertEl) alertEl.style.display='none';
+  if(cont) cont.style.display='block';
+
+  setDiff('c_tm','c_tm_s',p.tm,r.tm,'TM',true);
+  setDiff('c_ing','c_ing_s',p.ing,r.ing,'$',true);
+  setDiff('c_costo','c_costo_s',p.costo,r.costo,'$',false);
+  setDiff('c_margen','c_margen_s',p.margen,r.margen,'$',true);
+
+  const tbody=document.getElementById('comp_tbody');
+  const rows=[
+    ['TM capturadas',p.tm.toFixed(1),r.tm.toFixed(1),r.tm-p.tm,'TM',true],
+    ['Ingreso total',fmt(p.ing),fmt(r.ing),r.ing-p.ing,'$',true],
+    ['Ingreso / TM','$'+Math.round(p.itm),'$'+Math.round(r.itm),r.itm-p.itm,'$/TM',true],
+    ['Costo total',fmt(p.costo),fmt(r.costo),p.costo-r.costo,'$',false],
+    ['Costo / TM','$'+Math.round(p.ctm),'$'+Math.round(r.ctm),p.ctm-r.ctm,'$/TM',false],
+    ['Margen $',fmt(p.margen),fmt(r.margen),r.margen-p.margen,'$',true],
+    ['Margen %',p.mpct.toFixed(1)+'%',r.mpct.toFixed(1)+'%',r.mpct-p.mpct,'pp',true],
+  ];
+  tbody.innerHTML=rows.map(([lbl,pv,rv,diff,unit,posGood])=>{
+    const good=posGood?diff>=0:diff<=0;
+    const cls=diff!==0?(good?'diff-pos':'diff-neg'):'';
+    const sign=diff>0?'+':'';
+    const disp=unit==='$'?sign+fmt(diff):sign+(typeof diff==='number'?diff.toFixed(1):diff)+' '+unit;
+    return `<tr><td>${lbl}</td><td style="text-align:right;color:#2E75B6;font-weight:600">${pv}</td><td style="text-align:right;font-weight:600">${rv}</td><td class="r ${cls}">${disp}</td></tr>`;
+  }).join('');
+
+  buildCompChart(p,r);
+
+  // Varianzas
+  const el=document.getElementById('var_txt');
+  if(el){
+    const tmD=r.tm-p.tm,ingD=r.ing-p.ing,costoD=r.costo-p.costo,mD=r.margen-p.margen;
+    el.innerHTML=[
+      `<strong>TM:</strong> ${r.tm.toFixed(1)} TM reales vs. ${p.tm.toFixed(1)} estimadas (${tmD>=0?'+':''}${tmD.toFixed(1)} TM). ${tmD>=0?'La pesca superó la proyección.':'Captura por debajo de lo estimado.'}`,
+      `<strong>Ingresos:</strong> ${fmt(r.ing)} vs. ${fmt(p.ing)} estimado (${ingD>=0?'+':''} ${fmt(ingD)}). ${Math.abs(ingD)<1000?'Variación menor al margen normal.':ingD>0?'Precios o mix superiores al estimado.':'Precios o mix inferiores al estimado.'}`,
+      `<strong>Costos:</strong> ${fmt(r.costo)} vs. ${fmt(p.costo)} estimado (${costoD>=0?'+':''} ${fmt(costoD)}). ${costoD>5000?'Los costos superaron la proyección.':costoD<-5000?'Los costos fueron menores a lo proyectado.':'Costos dentro de lo estimado.'}`,
+      `<strong>Margen:</strong> ${fmt(r.margen)} (${r.mpct.toFixed(1)}%) vs. estimado ${fmt(p.margen)} (${p.mpct.toFixed(1)}%). Variación: ${mD>=0?'+':''}${fmt(mD)}.`,
+    ].map(l=>`<p style="margin-bottom:8px">${l}</p>`).join('');
+  }
+}
+
+function setDiff(vId,sId,pv,rv,unit,posGood){
+  const diff=rv-pv;
+  const pct=pv!==0?diff/Math.abs(pv)*100:0;
+  const good=posGood?diff>=0:diff<=0;
+  const el=document.getElementById(vId);
+  const sub=document.getElementById(sId);
+  if(el){el.textContent=unit==='$'?fmt(rv):rv.toFixed(1);el.style.color=good?'#1D9E75':'#D85A30';}
+  if(sub){const s=diff>0?'+':'';sub.textContent=(unit==='$'?s+fmt(diff):s+diff.toFixed(1))+' vs proy. ('+pct.toFixed(1)+'%)';}
+}
+
+function buildCompChart(p,r){
+  if(!window.Chart) return;
+  if(chartComp) chartComp.destroy();
+  const ctx=document.getElementById('chartComp');
+  if(!ctx) return;
+  chartComp=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:['Ingreso total','Costo total','Margen'],
+      datasets:[
+        {label:'Proyectado',data:[p.ing,p.costo,p.margen],backgroundColor:'#85B7EB',borderRadius:4},
+        {label:'Real',data:[r.ing,r.costo,r.margen],
+         backgroundColor:[r.ing>=p.ing?'#1D9E75':'#D85A30',r.costo<=p.costo?'#1D9E75':'#D85A30',r.margen>=p.margen?'#1D9E75':'#D85A30'],
+         borderRadius:4}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'$'+Math.round(c.parsed.y).toLocaleString()}}},
+      scales:{
+        x:{ticks:{color:'#888',font:{size:11}},grid:{color:'rgba(0,0,0,0.04)'}},
+        y:{ticks:{color:'#888',font:{size:11},callback:v=>'$'+(v/1000).toFixed(0)+'K'},grid:{color:'rgba(0,0,0,0.04)'}}
+      }
+    }
+  });
+  const leg=document.createElement('div');
+  leg.style.cssText='display:flex;gap:16px;font-size:12px;color:#888;margin-top:8px;justify-content:center';
+  leg.innerHTML=`<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#85B7EB;display:inline-block"></span>Proyectado</span><span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#1D9E75;display:inline-block"></span>Favorable</span><span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#D85A30;display:inline-block"></span>Desfavorable</span>`;
+  leg.className='comp-legend';
+  const card=ctx.parentElement.parentElement;
+  const ex=card.querySelector('.comp-legend');
+  if(ex) ex.remove();
+  card.appendChild(leg);
+}
+
+// ── NAV ──
+function showScreen(name,btn){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.ntab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  btn.classList.add('active');
+  if(name==='comp') calcComp();
+  if(name==='auditoria') calcAuditoria();
+  if(name==='sim'){ calcSim(); renderInv(); renderRepo(); }
+}
+
+// ── INVENTARIO ──
+// Cada ítem: {name, unidad, salida, xdia, costo_unit}
+let invItems=[
+  {name:'Víveres',unidad:'rac',salida:0,xdia:0,costo_unit:0},
+  {name:'Agua potable',unidad:'lt',salida:0,xdia:0,costo_unit:0},
+  {name:'Carnada',unidad:'kg',salida:0,xdia:0,costo_unit:0},
+  {name:'Sal',unidad:'sac',salida:0,xdia:0,costo_unit:0},
+  {name:'Aceite motor',unidad:'lt',salida:0,xdia:0,costo_unit:0},
+  {name:'Hielo',unidad:'TM',salida:0,xdia:0,costo_unit:0},
+];
+
+function renderInv(){
+  const dias=+document.getElementById('sim_dias').value||0;
+  const c=document.getElementById('inv_container');
+  if(!c) return;
+
+  // Full render only when item count changed or first load
+  const existing=c.querySelectorAll('.inv-row').length;
+  if(existing!==invItems.length){
+    renderInvFull(dias, c);
+  } else {
+    updateInvCalc(dias, c);
+  }
+
+  const pill=document.getElementById('inv_pill');
+  if(pill) pill.textContent=invItems.filter(it=>it.salida>0).length+' ítems';
+}
+
+function renderInvFull(dias, c){
+  c.innerHTML=invItems.map((it,i)=>`
+    <div class="inv-row" data-idx="${i}">
+      <input type="text" value="${eh(it.name)}" placeholder="Nombre del ítem"
+        oninput="invItems[${i}].name=this.value;sv()">
+      <input type="text" value="${eh(it.unidad)}" placeholder="u"
+        oninput="invItems[${i}].unidad=this.value;sv()" style="text-align:center">
+      <input type="number" value="${it.salida||''}" placeholder="0" min="0" step="1"
+        oninput="invItems[${i}].salida=+this.value;sv();updateInvCalc(+document.getElementById('sim_dias').value||0,document.getElementById('inv_container'));calcSim()">
+      <input type="number" value="${it.xdia||''}" placeholder="0" min="0" step="0.1"
+        oninput="invItems[${i}].xdia=+this.value;sv();updateInvCalc(+document.getElementById('sim_dias').value||0,document.getElementById('inv_container'));calcSim()">
+      <input type="number" value="${it.costo_unit||''}" placeholder="0" min="0" step="0.01"
+        oninput="invItems[${i}].costo_unit=+this.value;sv();updateInvCalc(+document.getElementById('sim_dias').value||0,document.getElementById('inv_container'));calcSim()">
+      <div class="inv-cons" id="inv_cons_${i}">—</div>
+      <div class="inv-rem ok" id="inv_rem_${i}" style="display:flex;flex-direction:column;align-items:flex-end">—</div>
+      <button onclick="invItems.splice(${i},1);renderInvFull(+document.getElementById('sim_dias').value||0,document.getElementById('inv_container'));renderInv();sv()" style="font-size:15px;color:#ccc;background:none;border:none;cursor:pointer;padding:0">×</button>
+    </div>`).join('');
+  updateInvCalc(dias, c);
+}
+
+function updateInvCalc(dias, c){
+  let totSalidaVal=0, totConsVal=0, totRemVal=0;
+
+  invItems.forEach((it,i)=>{
+    const cons    = Math.min(it.salida, it.xdia*dias);
+    const rem     = Math.max(0, it.salida - cons);
+    const agotado = it.salida>0 && it.xdia*dias > it.salida;
+    const pctCons = it.salida>0 ? cons/it.salida*100 : 0;
+    const pctRem  = it.salida>0 ? rem/it.salida*100  : 0;
+    const valCons = cons * it.costo_unit;
+    const valRem  = rem  * it.costo_unit;
+    totSalidaVal += it.salida * it.costo_unit;
+    totConsVal   += valCons;
+    totRemVal    += valRem;
+
+    const remClass = agotado ? 'crit' : pctRem<20&&it.salida>0 ? 'warn' : 'ok';
+    const consDisp = it.salida>0 ? `${cons.toFixed(1)} (${pctCons.toFixed(0)}%)` : '—';
+    const consValDisp = valCons>0 ? fmt(valCons) : '';
+    const remDisp = it.salida>0 ? (agotado ? 'AGOT.' : `${rem.toFixed(1)} (${pctRem.toFixed(0)}%)`) : '—';
+    const remValDisp = valRem>0 ? fmt(valRem) : '';
+
+    const consEl=document.getElementById('inv_cons_'+i);
+    if(consEl) consEl.innerHTML=`<div>${consDisp}</div><div style="font-size:10px;color:#BA7517;margin-top:1px">${consValDisp}</div>`;
+
+    const remEl=document.getElementById('inv_rem_'+i);
+    if(remEl){
+      remEl.className=`inv-rem ${remClass}`;
+      remEl.style.cssText='display:flex;flex-direction:column;align-items:flex-end';
+      remEl.innerHTML=`<div>${remDisp}</div><div style="font-size:10px;opacity:.75;margin-top:1px">${remValDisp}</div>`;
+    }
+  });
+
+  renderInvResumen(dias, totSalidaVal, totConsVal, totRemVal);
+  renderInvStatus(dias);
+}
+
+function renderInvResumen(dias, totSalida, totCons, totRem){
+  const c=document.getElementById('inv_resumen_container');
+  if(!c) return;
+  const items=invItems.filter(it=>it.salida>0 && it.costo_unit>0);
+  if(!items.length||!dias){
+    c.innerHTML='<p style="color:#bbb;font-size:12px">Ingresa el inventario con costos unitarios y los días del escenario</p>';
+    return;
+  }
+  const pctCons = totSalida>0 ? totCons/totSalida*100 : 0;
+  const pctRem  = totSalida>0 ? totRem/totSalida*100  : 0;
+
+  // Progress bar
+  const barCons = totSalida>0 ? (totCons/totSalida*100).toFixed(1) : 0;
+  const barRem  = totSalida>0 ? (totRem/totSalida*100).toFixed(1)  : 0;
+
+  c.innerHTML=`
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#666;margin-bottom:4px">
+        <span>Valor de salida total</span><strong>${fmt(totSalida)}</strong>
+      </div>
+      <div style="height:14px;background:#f0ece6;border-radius:7px;overflow:hidden;display:flex">
+        <div style="width:${barCons}%;background:#D85A30;border-radius:7px 0 0 7px"></div>
+        <div style="width:${barRem}%;background:#1D9E75"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;margin-top:3px">
+        <span style="color:#D85A30">■ Consumido ${pctCons.toFixed(0)}%</span>
+        <span style="color:#1D9E75">■ Remanente ${pctRem.toFixed(0)}%</span>
+      </div>
+    </div>
+    <table class="data-table" style="font-size:12px">
+      <thead><tr>
+        <th>Ítem</th>
+        <th class="r" style="color:#D85A30">Consumido</th>
+        <th class="r" style="color:#D85A30">% salida</th>
+        <th class="r" style="color:#1D9E75">Remanente $</th>
+        <th class="r" style="color:#1D9E75">% salida</th>
+      </tr></thead>
+      <tbody>
+        ${items.map(it=>{
+          const cons=Math.min(it.salida,it.xdia*dias);
+          const rem=Math.max(0,it.salida-cons);
+          const vCons=cons*it.costo_unit;
+          const vRem=rem*it.costo_unit;
+          const pC=it.salida>0?cons/it.salida*100:0;
+          const pR=it.salida>0?rem/it.salida*100:0;
+          return `<tr>
+            <td>${eh(it.name)}</td>
+            <td class="r" style="color:#D85A30">${fmt(vCons)}</td>
+            <td class="r" style="color:#D85A30">${pC.toFixed(0)}%</td>
+            <td class="r" style="color:#1D9E75">${fmt(vRem)}</td>
+            <td class="r" style="color:#1D9E75">${pR.toFixed(0)}%</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td>TOTAL</td>
+          <td class="r" style="color:#D85A30">${fmt(totCons)}</td>
+          <td class="r" style="color:#D85A30">${pctCons.toFixed(0)}%</td>
+          <td class="r" style="color:#1D9E75">${fmt(totRem)}</td>
+          <td class="r" style="color:#1D9E75">${pctRem.toFixed(0)}%</td>
+        </tr>
+      </tfoot>
+    </table>
+    <div style="font-size:11px;color:#666;margin-top:8px;padding:8px 10px;background:#f8f6f2;border-radius:6px">
+      El remanente <strong style="color:#1D9E75">${fmt(totRem)}</strong> no es pérdida — es capital que regresa con el barco para la próxima salida. 
+      El costo real del viaje solo incluye lo consumido: <strong style="color:#D85A30">${fmt(totCons)}</strong>.
+    </div>`;
+}
+
+function getInvRemanenteValor(){
+  const dias=+document.getElementById('sim_dias').value||0;
+  return invItems.reduce((s,it)=>{
+    const rem=Math.max(0,it.salida-(it.xdia*dias));
+    return s+rem*it.costo_unit;
+  },0);
+}
+
+function getInvSalidaValor(){
+  return invItems.reduce((s,it)=>s+it.salida*it.costo_unit,0);
+}
+
+function renderInvStatus(dias){
+  const c=document.getElementById('inv_status_container');
+  if(!c) return;
+  const items=invItems.filter(it=>it.salida>0);
+  if(!items.length||!dias){c.innerHTML='<p style="color:#bbb;font-size:12px">Ingresa el inventario y los días del escenario para ver el estado</p>';return;}
+  c.innerHTML=items.map(it=>{
+    const cons=Math.min(it.salida,it.xdia*dias);
+    const rem=Math.max(0,it.salida-cons);
+    const pct=it.salida>0?rem/it.salida:1;
+    const agotado=it.xdia*dias>it.salida;
+    const cls=agotado?'crit':pct<0.2?'warn':'ok';
+    const label=agotado?'Sin stock — se agota antes de llegar':pct<0.2?'Crítico — menos del 20% restante':'OK — stock suficiente';
+    const remVal=rem*it.costo_unit;
+    return `<div class="sem-item ${cls}">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="sem-dot ${cls}"></span>
+        <div>
+          <div style="font-weight:600">${eh(it.name)}</div>
+          <div style="font-size:10px;color:#888">${rem.toFixed(1)} ${it.unidad} remanentes (${(pct*100).toFixed(0)}%)</div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:12px;font-weight:700;color:${cls==='ok'?'#1D9E75':cls==='warn'?'#BA7517':'#D85A30'}">${remVal>0?fmt(remVal):'—'}</div>
+        <div style="font-size:10px;color:#888">${label}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addInvItem(){
+  invItems.push({name:'Nuevo ítem',unidad:'u',salida:0,xdia:0,costo_unit:0});
+  const c=document.getElementById('inv_container');
+  if(c) renderInvFull(+document.getElementById('sim_dias').value||0, c);
+  renderInv();
+  sv();
+}
+
+// ── REPOSICIÓN PRÓXIMA SALIDA ──
+let repoItems=[
+  {name:'',monto:0},
+];
+
+function renderRepo(){
+  const c=document.getElementById('repo_container');
+  if(!c) return;
+  c.innerHTML=repoItems.map((it,i)=>`
+    <div style="display:grid;grid-template-columns:1fr 110px 20px;gap:6px;align-items:center;margin-bottom:6px">
+      <input type="text" value="${eh(it.name)}" placeholder="Ítem a reponer (ej. Víveres)"
+        style="border:1.5px solid #e0ddd8;border-radius:5px;padding:6px 8px;font-size:12px;font-family:inherit;outline:none;background:#fafaf8;transition:.2s;width:100%"
+        oninput="repoItems[${i}].name=this.value;sv()">
+      <input type="number" value="${it.monto||''}" placeholder="$0" min="0" step="100"
+        style="border:1.5px solid #e0ddd8;border-radius:5px;padding:6px 8px;font-size:12px;font-family:inherit;outline:none;background:#fafaf8;transition:.2s;text-align:right;width:100%"
+        oninput="repoItems[${i}].monto=+this.value;sv();calcRepo()">
+      <button onclick="repoItems.splice(${i},1);renderRepo();calcRepo();sv()" style="font-size:15px;color:#ccc;background:none;border:none;cursor:pointer;padding:0">×</button>
+    </div>`).join('');
+}
+
+function addRepoItem(){
+  repoItems.push({name:'',monto:0});
+  renderRepo();sv();
+}
+
+function calcRepo(){
+  const repoTotal  = repoItems.reduce((s,it)=>s+it.monto,0);
+  const avitAnterior = getTotalProv();   // costo avituallamiento salida anterior (referencia)
+  const invRem     = getInvRemanenteValor(); // regresa con el barco = ya está pagado
+  // Próxima salida: el remanente cubre parte del avituallamiento, reposición cubre el resto comprado
+  const costoProx  = avitAnterior - invRem + repoTotal; // ref − ahorro + compra nueva
+  const ahorro     = avitAnterior - costoProx;           // diferencia real vs salida anterior
+
+  // Avituallamiento base = remanente (capital que no hay que desembolsar)
+  const remEl = document.getElementById('sim_repo_avit');
+  if(remEl){ remEl.textContent = invRem>0 ? fmt(invRem) : '$0'; remEl.style.color = invRem>0?'#1D9E75':'#aaa'; }
+
+  setText('sim_repo_total', repoTotal>0 ? fmt(repoTotal) : '$0');
+
+  const aEl = document.getElementById('sim_repo_ahorro');
+  if(aEl){
+    aEl.textContent = fmt(Math.abs(ahorro));
+    aEl.style.color = ahorro>=0 ? '#1D9E75' : '#D85A30';
+  }
+
+  const cpEl = document.getElementById('sim_repo_costo_prox');
+  if(cpEl){
+    cpEl.textContent = fmt(Math.max(0, costoProx));
+    cpEl.style.color = costoProx < avitAnterior ? '#1D9E75' : '#D85A30';
+  }
+
+  // Actualizar subtítulos
+  const refEl = document.getElementById('sim_repo_ref');
+  if(refEl) refEl.textContent = 'ref. salida anterior: '+fmt(avitAnterior);
+}
+
+// ── SIMULACIÓN DE ESCENARIO ──
+function calcSim(){
+  const dias   =+document.getElementById('sim_dias').value||0;
+  const tm_yf  =+document.getElementById('sim_tm_yf').value||0;
+  const tm_skj =+document.getElementById('sim_tm_skj').value||0;
+  const tm_rec =+document.getElementById('sim_tm_rec').value||0;
+  const tm_com =+document.getElementById('sim_tm_com').value||0;
+  const px_com =+document.getElementById('sim_px_com').value||0;
+  const tm_total=tm_yf+tm_skj+tm_rec+tm_com;
+  setText('sim_tm_total_disp', tm_total.toFixed(1)+' TM');
+
+  // Precios del escenario — anclados a proyección
+  const ancla  =+document.getElementById('p_ancla').value||0;
+  const px_yf  =ancla+yfDiff();
+  const px_skj =ancla+skjDiff();
+  const px_rec =+document.getElementById('px_rec').value||0;
+
+  // Precio promedio ponderado YF+SKJ
+  const tm_yfskj=tm_yf+tm_skj;
+  const px_prom_yfskj=tm_yfskj>0?(tm_yf*px_yf+tm_skj*px_skj)/tm_yfskj:0;
+
+  // Mostrar precios en panel de escenario
+  setText('sim_ancla_disp', ancla>0?'$'+Math.round(ancla)+'/TM':'No ingresado');
+  setText('sim_px_yf_disp', px_yf>0?'$'+Math.round(px_yf)+'/TM':'—');
+  setText('sim_px_skj_disp', px_skj>0?'$'+Math.round(px_skj)+'/TM':'—');
+  setText('sim_px_prom_disp', px_prom_yfskj>0?'$'+Math.round(px_prom_yfskj)+'/TM':'—');
+
+  const ing_yf   =tm_yf*px_yf;
+  const ing_skj  =tm_skj*px_skj;
+  const ing_rec  =tm_rec*px_rec;
+  const ing_com  =tm_com*px_com;
+  const ing_bruto=ing_yf+ing_skj+ing_rec+ing_com;
+
+  // SAL castigo al ingreso — tomado de proyección
+  const sal=+document.getElementById('p_sal').value||0;
+  const ing_total=ing_bruto-sal;
+
+  // COSTO ANCLADO A PROYECCIÓN PRE-ZARPE
+  const rolTM=+document.getElementById('p_rol_tm').value||0;
+  const prov =getTotalProv();   // igual que proyección
+  const rol  =tm_total*rolTM;
+  const costo=prov+rol;
+
+  // Inventario a bordo
+  const invSalida   =getInvSalidaValor();
+  const invRem      =getInvRemanenteValor();
+  const invConsumido=invSalida-invRem;
+  const costoEfectivo  =costo-invRem;
+  const margen         =ing_total-costo;
+  const margenEfectivo =ing_total-costoEfectivo;
+  const mpct           =ing_total>0?margen/ing_total*100:0;
+
+  // Resultado card — 4 KPIs
+  const mEl=document.getElementById('sim_margen');
+  if(mEl){mEl.textContent=ing_total>0||ing_bruto>0?fmt(margenEfectivo):'—';mEl.style.color=margenEfectivo>=0?'#1D9E75':'#D85A30';}
+  setText('sim_ing', ing_total>0||ing_bruto>0?fmt(ing_total):'—');
+  setText('sim_ing_sub', sal>0?'Bruto '+fmt(ing_bruto)+' − sal '+fmt(sal)
+    :(tm_total>0?'$'+Math.round(ing_total/tm_total)+'/TM promedio':''));
+  setText('sim_costo', fmt(costoEfectivo));   // costo real = avit + rol - remanente
+  setText('sim_margen_sub', ing_total>0?margenEfectivo>=0
+    ?mpct.toFixed(1)+'% sobre ingresos netos'
+    :'Viaje con pérdida':'');
+
+  // KPI Remanente inventario
+  const remEl=document.getElementById('sim_inv_rem_kpi');
+  if(remEl){remEl.textContent=invRem>0?fmt(invRem):'$0';remEl.style.color=invRem>0?'#185FA5':'#aaa';}
+
+  // Calcular reposición
+  calcRepo();
+
+  // Detalle inventario (pequeño, debajo de los KPIs)
+  const simInvBox=document.getElementById('sim_inv_detalle');
+  if(simInvBox){
+    simInvBox.innerHTML=invSalida>0
+      ?`<div style="margin-top:12px;padding-top:12px;border-top:1px dashed #e0ddd8;font-size:11px;color:#666;display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <span>Inventario de salida: <strong>${fmt(invSalida)}</strong></span>
+          <span>Consumido: <strong style="color:#D85A30">${fmt(invConsumido)}</strong></span>
+          <span>Remanente: <strong style="color:#1D9E75">${fmt(invRem)}</strong></span>
+        </div>`
+      :'';
+  }
+
+  // Comparativo vs proyección
+  const p=SPROY;
+  const tbody=document.getElementById('sim_comp_tbody');
+  if(tbody&&p&&p.tm>0&&tm_total>0){
+    const rows=[
+      ['Días en el mar', p.dias>0?p.dias+' días':'—', dias+' días', dias-p.dias,'días',false],
+      ['TM capturadas', p.tm.toFixed(1), tm_total.toFixed(1), tm_total-p.tm,'TM',true],
+      ['Ingreso total', fmt(p.ing), fmt(ing_total), ing_total-p.ing,'$',true],
+      ['Precio prom. YF', '—', px_yf>0?'$'+Math.round(px_yf):' —', 0,'',false],
+      ['Precio prom. SKJ', '—', px_skj>0?'$'+Math.round(px_skj):'—', 0,'',false],
+      ['Precio prom. YF+SKJ', '—', px_prom_yfskj>0?'$'+Math.round(px_prom_yfskj):'—', 0,'',false],
+      ['Costo avituallamiento', fmt(p.costo), fmt(prov), prov-p.costo,'$',false],
+      ['Rol tripulación', '—', fmt(rol), 0,'',false],
+      ['Margen $', fmt(p.margen), fmt(margen), margen-p.margen,'$',true],
+      ['Margen %', p.mpct.toFixed(1)+'%', mpct.toFixed(1)+'%', mpct-p.mpct,'pp',true],
+    ];
+    tbody.innerHTML=rows.map(([lbl,pv,sv,diff,unit,posGood])=>{
+      const skip=unit==='';
+      const good=posGood?diff>=0:diff<=0;
+      const cls=(!skip&&diff!==0)?(good?'diff-pos':'diff-neg'):'';
+      const sign=diff>0?'+':'';
+      const disp=skip?'':unit==='$'?sign+fmt(diff):sign+(typeof diff==='number'?diff.toFixed(1):diff)+' '+unit;
+      return `<tr><td>${lbl}</td><td style="text-align:right;color:#2E75B6;font-weight:600">${pv}</td><td style="text-align:right;font-weight:600">${sv}</td><td class="r ${cls}">${disp}</td></tr>`;
+    }).join('');
+  } else if(tbody&&(!p||!p.tm)){
+    tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:#bbb;padding:12px">Ingresa primero la Proyección pre-zarpe</td></tr>';
+  }
+
+  // Actualizar inventario sin destruir inputs
+  const c2=document.getElementById('inv_container');
+  if(c2) updateInvCalc(dias,c2);
+}
+// ── AUDITORÍA ──
+function calcAuditoria(){
+  const ancla =+document.getElementById('p_ancla').value||0;
+  const tm_yf =+document.getElementById('tm_yf').value||0;
+  const tm_skj=+document.getElementById('tm_skj').value||0;
+  const tm_rec=+document.getElementById('tm_rec').value||0;
+  const tm_ps =+document.getElementById('tm_ps').value||0;
+  const tm_bt =+document.getElementById('tm_bt').value||0;
+  const tm_do =+document.getElementById('tm_do').value||0;
+  const tm_extra=+document.getElementById('tm_extra').value||0;
+  const px_rec=+document.getElementById('px_rec').value||0;
+  const px_ps =+document.getElementById('px_ps').value||0;
+  const px_bt =+document.getElementById('px_bt').value||0;
+  const px_do =+document.getElementById('px_do').value||0;
+  const px_extra=+document.getElementById('px_extra').value||0;
+  const nom_extra=document.getElementById('nom_extra')?.value||'Otro';
+  const tm_total=tm_yf+tm_skj+tm_rec+tm_ps+tm_bt+tm_do+tm_extra;
+
+  const rolTM =+document.getElementById('p_rol_tm').value||0;
+  const sal   =+document.getElementById('p_sal').value||0;
+  const ant   =+document.getElementById('p_anticipo').value||0;
+
+  setText('aud_ancla', ancla>0?'$'+ancla+'/TM':'no ingresado');
+
+  // YF tallas — leer diferenciales editables
+  const yfTallas=[
+    {label:'> 20 kg',   diff:+document.getElementById('d_yf_g').value||200,  pct:+document.getElementById('tl_yf_g').value/100},
+    {label:'7.5–20 kg', diff:+document.getElementById('d_yf_m').value||150,  pct:+document.getElementById('tl_yf_m').value/100},
+    {label:'4–7.5 kg',  diff:+document.getElementById('d_yf_b').value||0,    pct:+document.getElementById('tl_yf_b').value/100},
+    {label:'3–4 kg',    diff:+document.getElementById('d_yf_ch').value||-200, pct:+document.getElementById('tl_yf_ch').value/100},
+    {label:'< 3 kg',    diff:+document.getElementById('d_yf_xs').value||-400, pct:+document.getElementById('tl_yf_xs').value/100},
+  ];
+  const yfSum=yfTallas.reduce((s,t)=>s+t.pct,0);
+  let ing_yf_total=0;
+  const yfTbody=document.getElementById('aud_yf_tbody');
+  if(yfTbody){
+    let rows='';
+    yfTallas.forEach(t=>{
+      const pxEf=ancla+t.diff;
+      const tmTalla=tm_yf*(yfSum>0?t.pct/yfSum:0);
+      const ing=tmTalla*pxEf;
+      ing_yf_total+=ing;
+      const diffStr=t.diff>0?'+$'+t.diff:t.diff<0?'−$'+Math.abs(t.diff):'$0 (ancla)';
+      const diffColor=t.diff>0?'#1D9E75':t.diff<0?'#D85A30':'#888';
+      rows+=`<tr>
+        <td>${t.label}</td>
+        <td class="r" style="color:${diffColor};font-weight:600">${diffStr}</td>
+        <td class="r"><strong>$${Math.round(pxEf)}</strong><span style="color:#aaa;font-size:10px"> = $${ancla}${t.diff>=0?'+':''}${t.diff}</span></td>
+        <td class="r">${yfSum>0?(t.pct/yfSum*100).toFixed(0):'0'}%</td>
+        <td class="r">${tmTalla.toFixed(2)} TM</td>
+        <td class="r" style="color:#1D9E75;font-weight:600">${ing>0?fmt(ing):'—'}</td>
+      </tr>`;
+    });
+    rows+=`<tr class="total-row"><td colspan="4">Total YF (${tm_yf} TM)</td><td class="r">${tm_yf} TM</td><td class="r" style="color:#1D9E75">${fmt(ing_yf_total)}</td></tr>`;
+    yfTbody.innerHTML=rows;
+  }
+
+  // SKJ tallas — leer diferenciales editables
+  const skjTallas=[
+    {label:'> 7.5 kg',  diff:+document.getElementById('d_skj_g').value||50,   pct:+document.getElementById('tl_skj_g').value/100},
+    {label:'4–7.5 kg',  diff:+document.getElementById('d_skj_b').value||0,    pct:+document.getElementById('tl_skj_b').value/100},
+    {label:'3–4 kg',    diff:+document.getElementById('d_skj_ch').value||-200, pct:+document.getElementById('tl_skj_ch').value/100},
+    {label:'< 3 kg',    diff:+document.getElementById('d_skj_xs').value||-400, pct:+document.getElementById('tl_skj_xs').value/100},
+  ];
+  const skjSum=skjTallas.reduce((s,t)=>s+t.pct,0);
+  let ing_skj_total=0;
+  const skjTbody=document.getElementById('aud_skj_tbody');
+  if(skjTbody){
+    let rows='';
+    skjTallas.forEach(t=>{
+      const pxEf=ancla+t.diff;
+      const tmTalla=tm_skj*(skjSum>0?t.pct/skjSum:0);
+      const ing=tmTalla*pxEf;
+      ing_skj_total+=ing;
+      const diffStr=t.diff>0?'+$'+t.diff:t.diff<0?'−$'+Math.abs(t.diff):'$0 (ancla)';
+      const diffColor=t.diff>0?'#1D9E75':t.diff<0?'#D85A30':'#888';
+      rows+=`<tr>
+        <td>${t.label}</td>
+        <td class="r" style="color:${diffColor};font-weight:600">${diffStr}</td>
+        <td class="r"><strong>$${Math.round(pxEf)}</strong><span style="color:#aaa;font-size:10px"> = $${ancla}${t.diff>=0?'+':''}${t.diff}</span></td>
+        <td class="r">${skjSum>0?(t.pct/skjSum*100).toFixed(0):'0'}%</td>
+        <td class="r">${tmTalla.toFixed(2)} TM</td>
+        <td class="r" style="color:#1D9E75;font-weight:600">${ing>0?fmt(ing):'—'}</td>
+      </tr>`;
+    });
+    rows+=`<tr class="total-row"><td colspan="4">Total SKJ (${tm_skj} TM)</td><td class="r">${tm_skj} TM</td><td class="r" style="color:#1D9E75">${fmt(ing_skj_total)}</td></tr>`;
+    skjTbody.innerHTML=rows;
+  }
+
+  // Comercio
+  const comSpec=[
+    {label:'Rechazo',tm:tm_rec,px:px_rec},
+    {label:'Pata seca',tm:tm_ps,px:px_ps},
+    {label:'Botella',tm:tm_bt,px:px_bt},
+    {label:'Dorado',tm:tm_do,px:px_do},
+    {label:nom_extra,tm:tm_extra,px:px_extra},
+  ].filter(c=>c.tm>0);
+  const ing_com=comSpec.reduce((s,c)=>s+c.tm*c.px,0);
+  const comTbody=document.getElementById('aud_com_tbody');
+  if(comTbody){
+    comTbody.innerHTML=comSpec.length>0
+      ? comSpec.map(c=>`<tr><td>${c.label}</td><td class="r">${c.tm} TM</td><td class="r">$${c.px}/TM</td><td class="r" style="color:#1D9E75;font-weight:600">${fmt(c.tm*c.px)}</td></tr>`).join('')+
+        `<tr class="total-row"><td colspan="3">Total comercio</td><td class="r" style="color:#1D9E75">${fmt(ing_com)}</td></tr>`
+      : '<tr><td colspan="4" style="color:#bbb;text-align:center;padding:10px">Sin pesca de comercio ingresada</td></tr>';
+  }
+
+  const ing_total=ing_yf_total+ing_skj_total+ing_com;
+  setText('aud_ing_total', fmt(ing_total));
+
+  // Costos
+  const comb=gal*pxgal;
+  const prov=getTotalProv();
+  const rol =tm_total*rolTM;
+  const costo=prov+rol+sal;
+  const ctm=tm_total>0?costo/tm_total:0;
+
+  const costoTbody=document.getElementById('aud_costo_tbody');
+  if(costoTbody){
+    const rows=[
+      ...provs.filter(p=>p.value>0).map(p=>[p.name,'Avituallamiento / trabajos',p.value,tm_total>0?p.value/tm_total:0]),
+      ['Rol tripulación',`${tm_total.toFixed(1)} TM × $${rolTM}/TM`,rol,tm_total>0?rol/tm_total:0],
+      ['Castigos salinidad','Estimado',sal,0],
+    ].filter(r=>r[2]>0);
+    costoTbody.innerHTML=rows.map(([lbl,det,monto,ptm])=>`
+      <tr>
+        <td>${lbl}</td>
+        <td class="r" style="color:#aaa;font-size:11px">${det}</td>
+        <td class="r" style="color:#D85A30;font-weight:600">${fmt(monto)}</td>
+        <td class="r" style="color:#888">${ptm>0?'$'+Math.round(ptm)+'/TM':'—'}</td>
+      </tr>`).join('');
+  }
+  setText('aud_costo_total', fmt(costo));
+
+  // Rol tripulación detalle
+  const rolTbody=document.getElementById('aud_rol_tbody');
+  if(rolTbody){
+    rolTbody.innerHTML=[
+      ['TM totales capturadas (estimadas)', tm_total.toFixed(1)+' TM'],
+      ['Tarifa rol por TM', '$'+rolTM+'/TM'],
+      ['TM YF', tm_yf.toFixed(1)+' TM  →  '+fmt(tm_yf*rolTM)],
+      ['TM SKJ', tm_skj.toFixed(1)+' TM  →  '+fmt(tm_skj*rolTM)],
+      ['TM Rechazo', tm_rec.toFixed(1)+' TM  →  '+fmt(tm_rec*rolTM)],
+      ['TM Comercio (ps+bt+do+otro)', (tm_ps+tm_bt+tm_do+tm_extra).toFixed(1)+' TM  →  '+fmt((tm_ps+tm_bt+tm_do+tm_extra)*rolTM)],
+      ['Rol total', fmt(rol)],
+      ['Rol / TM capturada', tm_total>0?'$'+Math.round(rol/tm_total)+'/TM':'—'],
+      ['Anticipos zarpe + saldo anterior', fmt(ant)+' (flujo de caja — no es costo P&L)'],
+    ].map(([k,v])=>`<tr><td style="color:#555">${k}</td><td class="r" style="font-weight:600">${v}</td></tr>`).join('');
+  }
+  setText('aud_rol_total', fmt(rol));
+
+  // Verificación
+  const margen=ing_total-costo;
+  const verTbody=document.getElementById('aud_verify_tbody');
+  if(verTbody){
+    verTbody.innerHTML=[
+      ['Ingreso YF (por tallas)', fmt(ing_yf_total),'#2E75B6'],
+      ['Ingreso SKJ (por tallas)', fmt(ing_skj_total),'#1D9E75'],
+      ['Ingreso comercio y otros', fmt(ing_com),'#534AB7'],
+      ['= TOTAL INGRESOS', fmt(ing_total),'#1D9E75'],
+      ['Avituallamiento y trabajos', '('+fmt(prov)+')','#D85A30'],
+      ['Rol tripulación', '('+fmt(rol)+')','#D85A30'],
+      ['Castigos salinidad', sal>0?'('+fmt(sal)+')':'—','#D85A30'],
+      ['= TOTAL COSTOS', '('+fmt(costo)+')','#D85A30'],
+      ['MARGEN NETO', fmt(margen), margen>=0?'#1D9E75':'#D85A30'],
+      ['Margen %', ing_total>0?(margen/ing_total*100).toFixed(2)+'%':'—', margen>=0?'#1D9E75':'#D85A30'],
+    ].map(([k,v,color])=>`<tr><td style="color:#555${k.startsWith('=')||k==='MARGEN NETO'?';font-weight:700':''}">${k}</td><td class="r" style="color:${color};font-weight:${k.startsWith('=')||k==='MARGEN NETO'?700:400}">${v}</td></tr>`).join('');
+  }
+}
+
+// ── PERSIST ──
+const INPUT_IDS=[
+  'p_entrada','p_dias','p_cap','p_ancla','p_rol_tm','p_sal','p_anticipo','p_credito_prov',
+  'tm_yf','tm_skj','tm_rec','px_rec','tm_ps','px_ps','tm_bt','px_bt','tm_do','px_do',
+  'tm_extra','px_extra','nom_extra',
+  'tl_yf_g','tl_yf_m','tl_yf_b','tl_yf_ch','tl_yf_xs',
+  'd_yf_g','d_yf_m','d_yf_b','d_yf_ch','d_yf_xs',
+  'tl_skj_g','tl_skj_b','tl_skj_ch','tl_skj_xs',
+  'd_skj_g','d_skj_b','d_skj_ch','d_skj_xs',
+  'r_entrada','r_dias','r_tm','r_comb','r_prov','r_rol','r_sal',
+  'rr_yf_tm','rr_yf_px','rr_skj_tm','rr_skj_px',
+  'rr_rec_tm','rr_rec_px','rr_ps_tm','rr_ps_px','rr_bt_tm','rr_bt_px',
+  'rr_do_tm','rr_do_px','rr_extra_tm','rr_extra_px','rr_nom_extra',
+  'sim_dias','sim_tm_yf','sim_tm_skj','sim_tm_rec','sim_tm_com','sim_px_com',
+];
+
+function sv(){
+  const vals={};
+  INPUT_IDS.forEach(id=>{const el=document.getElementById(id);if(el) vals[id]=el.value;});
+  try{localStorage.setItem(SK,JSON.stringify({vals,provs,invItems,repoItems}));flashSave();}catch(e){}
+}
+
+function load(){
+  try{
+    const raw=localStorage.getItem(SK);
+    if(!raw) return;
+    const {vals,provs:ps,invItems:iv}=JSON.parse(raw);
+    if(vals) Object.entries(vals).forEach(([id,v])=>{const el=document.getElementById(id);if(el) el.value=v;});
+    if(ps&&ps.length) provs=ps;
+    if(iv&&iv.length) invItems=iv;
+    if(raw.includes('repoItems')){const {repoItems:ri}=JSON.parse(raw);if(ri&&ri.length) repoItems=ri;}
+  }catch(e){}
+}
+
+function flashSave(){
+  const d=document.getElementById('saveDot');
+  d.classList.add('show');
+  setTimeout(()=>d.classList.remove('show'),1300);
+}
+
+// ── UTILS ──
+function fmt(n){
+  if(n===null||n===undefined||isNaN(n)||n===0) return n===0?'$0':'—';
+  const abs=Math.abs(Math.round(n));
+  const s='$'+abs.toLocaleString('es');
+  return n<0?'('+s+')':s;
+}
+function setText(id,val){const el=document.getElementById(id);if(el) el.textContent=val;}
+function eh(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ── INIT ──
+load();
+renderProvs();
+renderInv();
+renderRepo();
+syncTalla('yf');
+syncTalla('skj');
+cp();
+cr();
+</script>
+</body>
+</html>
